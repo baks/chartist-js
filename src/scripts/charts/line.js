@@ -115,6 +115,9 @@
     for (var i = 0; i < this.data.series.length; i++) {
       seriesGroups[i] = this.svg.elem('g');
 
+	  //check for specific series options
+	  var seriesOptions = Chartist.extend({}, options, this.data.series[i].options);
+	  
       // Write attributes to series group element. If series name or meta is undefined the attributes will not be written
       seriesGroups[i].attr({
         'series-name': this.data.series[i].name,
@@ -132,12 +135,12 @@
         point;
 
       for (var j = 0; j < normalizedData[i].length; j++) {
-        p = Chartist.projectPoint(chartRect, bounds, normalizedData[i], j, options);
+        p = Chartist.projectPoint(chartRect, bounds, normalizedData[i], j, seriesOptions);
         pathCoordinates.push(p.x, p.y);
 
         //If we should show points we need to create them now to avoid secondary loop
         // Small offset for Firefox to render squares correctly
-        if (options.showPoint) {
+        if (seriesOptions.showPoint) {
           point = seriesGroups[i].elem('line', {
             x1: p.x,
             y1: p.y,
@@ -163,12 +166,12 @@
       }
 
       // TODO: Nicer handling of conditions, maybe composition?
-      if (options.showLine || options.showArea) {
+      if (seriesOptions.showLine || seriesOptions.showArea) {
         // TODO: We should add a path API in the SVG library for easier path creation
         var pathElements = ['M' + pathCoordinates[0] + ',' + pathCoordinates[1]];
 
         // If smoothed path and path has more than two points then use catmull rom to bezier algorithm
-        if (options.lineSmooth && pathCoordinates.length > 4) {
+        if (seriesOptions.lineSmooth && pathCoordinates.length > 4) {
 
           var cr = Chartist.catmullRom2bezier(pathCoordinates);
           for(var k = 0; k < cr.length; k++) {
@@ -180,7 +183,7 @@
           }
         }
 
-        if(options.showLine) {
+        if(seriesOptions.showLine) {
           var line = seriesGroups[i].elem('path', {
             d: pathElements.join('')
           }, options.classNames.line, true).attr({
@@ -196,16 +199,16 @@
           });
         }
 
-        if(options.showArea) {
+        if(seriesOptions.showArea) {
           // If areaBase is outside the chart area (< low or > high) we need to set it respectively so that
           // the area is not drawn outside the chart area.
-          var areaBase = Math.max(Math.min(options.areaBase, bounds.max), bounds.min);
+          var areaBase = Math.max(Math.min(seriesOptions.areaBase, bounds.max), bounds.min);
 
           // If we need to draw area shapes we just make a copy of our pathElements SVG path array
           var areaPathElements = pathElements.slice();
 
           // We project the areaBase value into screen coordinates
-          var areaBaseProjected = Chartist.projectPoint(chartRect, bounds, [areaBase], 0, options);
+          var areaBaseProjected = Chartist.projectPoint(chartRect, bounds, [areaBase], 0, seriesOptions);
           // And splice our new area path array to add the missing path elements to close the area shape
           areaPathElements.splice(0, 0, 'M' + areaBaseProjected.x + ',' + areaBaseProjected.y);
           areaPathElements[1] = 'L' + pathCoordinates[0] + ',' + pathCoordinates[1];
