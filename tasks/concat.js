@@ -31,6 +31,7 @@ module.exports = function (grunt) {
 		  '<%= pkg.config.src %>/scripts/axes/date-axis.js',
 		  '<%= pkg.config.src %>/scripts/axes/step-axis.js',
 		  '<%= pkg.config.src %>/scripts/axes/linear-scale-axis.js',
+		  '<%= pkg.config.src %>/scripts/ticks/date-ticks-provider.js',
         ]
       }
     }

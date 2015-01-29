@@ -116,12 +116,13 @@
     highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
     highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
 
-    var axisX = new Chartist.LinearScaleAxis(
+    var axisX = new Chartist.DateAxis(
       Chartist.Axis.units.x,
       chartRect.x2 - chartRect.x1, {
         highLow: highLowForX,
         scaleMinSpace: options.axisX.scaleMinSpace
-      }
+      },
+	  new Chartist.DateTicksProvider()
     );
 
     var axisY = new Chartist.LinearScaleAxis(
@@ -136,8 +137,8 @@
     var labelGroup = this.svg.elem('g').addClass(options.classNames.labelGroup),
       gridGroup = this.svg.elem('g').addClass(options.classNames.gridGroup);
 
-	var ticksX = axisX.bounds.values;
-	var ticksY = axisY.bounds.values;
+	var ticksX = axisX.ticks || axisX.bounds.values;
+	var ticksY = axisY.ticks || axisY.bounds.values;
 	
     Chartist.drawAxis(
       axisX,
@@ -309,12 +310,14 @@
     });
   }
 
-  function LineXY(query, data, options, responsiveOptions) {
+  function LineXY(query, data, options, responsiveOptions, ticksXProvider, ticksYProvider) {
     Chartist.LineXY.super.constructor.call(this,
       query,
       data,
       Chartist.extend({}, defaultOptions, options),
       responsiveOptions);
+	  this.ticksXProvider = ticksXProvider;
+	  this.ticksYProvider = ticksYProvider;
   }
 
   // Creating line chart type in Chartist namespace

@@ -7,19 +7,22 @@
 (function (window, document, Chartist) {
   'use strict';
 
-  function DateAxis(axisUnit, axisLength, options) {
+  function DateAxis(axisUnit, axisLength, options, ticksProvider) {
     Chartist.DateAxis.super.constructor.call(this,
       axisUnit,
       axisLength,
       options);
 
-    this.bounds = Chartist.getBounds(this.axisLength, options.highLow, options.scaleMinSpace, options.referenceValue);
+	this.ticksProvider = ticksProvider;
+    this.ticks = ticksProvider.getTicks(options.highLow);
+	this.min = this.ticks[0].valueOf();
+	this.range = this.ticks[this.ticks.length-1].valueOf() - this.min;
   }
 
   function projectValue(value) {
     return {
-      pos: value * (this.axisLength / this.bounds.range) - bounds.min * (this.axisLength / this.bounds.range),
-      len: Chartist.projectLength(this.axisLength, this.bounds.step, this.bounds)
+      pos: value * (this.axisLength / this.range) - this.min * (this.axisLength / this.range),
+      len: Chartist.projectLength(this.axisLength, 1, this)
     };
   }
 
