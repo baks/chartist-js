@@ -1,9 +1,9 @@
 /**
- * The Chartist line chart can be used to draw Line or Scatter charts. If used in the browser you can access the global `Chartist` namespace where you find the `Line` function as a main entry point.
+ * Line XY Chart.
  *
- * For examples on how to use the line chart please check the examples of the `Chartist.Line` method.
+ * 
  *
- * @module Chartist.Line
+ * @module Chartist.LineXY
  */
 /* global Chartist */
 (function(window, document, Chartist){
@@ -12,7 +12,7 @@
   /**
    * Default options in line charts. Expand the code view to see a detailed list of options with comments.
    *
-   * @memberof Chartist.Line
+   * @memberof Chartist.LineXY
    */
   var defaultOptions = {
     // Options for X-Axis
@@ -92,26 +92,34 @@
    *
    */
   function createChart(options) {
-    var seriesGroups = [],
-      normalizedData = Chartist.normalizeDataArray(Chartist.getDataArray(this.data), this.data.labels.length);
+    var seriesGroups = [];
 
     // Create new svg object
     this.svg = Chartist.createSvg(this.container, options.width, options.height, options.classNames.chart);
 
     var chartRect = Chartist.createChartRect(this.svg, options);
-
-    var highLow = Chartist.getHighLow(normalizedData);
-    // Overrides of high / low from settings
-    highLow.high = +options.high || (options.high === 0 ? 0 : highLow.high);
-    highLow.low = +options.low || (options.low === 0 ? 0 : highLow.low);
 	
-	var highLowForX = {};
-	highLowForX.low = this.data.labels[this.data.labels.length - 1];
-	highLowForX.high = this.data.labels[0];
-    var axisX = new Chartist.DateAxis(
+	var yValues = [];
+	var xValues = [];
+	this.data.series.forEach(function(series, seriesIndex) {
+		xValues[seriesIndex] = [];
+		yValues[seriesIndex] = [];
+		series.data.forEach(function(value, valueIndex) {
+			xValues[seriesIndex][valueIndex] = value.x;
+			yValues[seriesIndex][valueIndex] = value.y;
+		});
+	});
+
+    var highLowForY = Chartist.getHighLow(yValues);
+	var highLowForX = Chartist.getHighLow(xValues);
+    // Overrides of high / low from settings
+    highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
+    highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
+
+    var axisX = new Chartist.LinearScaleAxis(
       Chartist.Axis.units.x,
       chartRect.x2 - chartRect.x1, {
-        highLow: highLow,
+        highLow: highLowForX,
         scaleMinSpace: options.axisX.scaleMinSpace
       }
     );
@@ -119,7 +127,7 @@
     var axisY = new Chartist.LinearScaleAxis(
       Chartist.Axis.units.y,
       chartRect.y1 - chartRect.y2, {
-        highLow: highLow,
+        highLow: highLowForY,
         scaleMinSpace: options.axisY.scaleMinSpace
       }
     );
@@ -128,9 +136,12 @@
     var labelGroup = this.svg.elem('g').addClass(options.classNames.labelGroup),
       gridGroup = this.svg.elem('g').addClass(options.classNames.gridGroup);
 
+	var ticksX = axisX.bounds.values;
+	var ticksY = axisY.bounds.values;
+	
     Chartist.drawAxis(
       axisX,
-      this.data.labels,
+      ticksX,
       function(projectedValue) {
         projectedValue.pos = chartRect.x1 + projectedValue.pos;
         return projectedValue;
@@ -150,7 +161,7 @@
 
     Chartist.drawAxis(
       axisY,
-      axisY.bounds.values,
+      ticksY,
       function(projectedValue) {
         projectedValue.pos = chartRect.y1 - projectedValue.pos;
         return projectedValue;
@@ -173,7 +184,7 @@
       seriesGroups[seriesIndex] = this.svg.elem('g');
 
 	  //check for specific series options
-	  var seriesOptions = Chartist.extend({}, options, this.data.series[seriesIndex].options);
+	  var seriesOptions = Chartist.extend({}, options, series.options);
 	  
       // Write attributes to series group element. If series name or meta is undefined the attributes will not be written
       seriesGroups[seriesIndex].attr({
@@ -189,10 +200,10 @@
 
       var pathCoordinates = [];
 
-      normalizedData[seriesIndex].forEach(function(value, valueIndex) {
+      series.data.forEach(function(value, valueIndex) {
         var p = {
-          x: chartRect.x1 + axisX.projectValue(value, valueIndex,  normalizedData[seriesIndex]).pos,
-          y: chartRect.y1 - axisY.projectValue(value, valueIndex,  normalizedData[seriesIndex]).pos
+          x: chartRect.x1 + axisX.projectValue(value.x, valueIndex,  series).pos,
+          y: chartRect.y1 - axisY.projectValue(value.y, valueIndex,  series).pos
         };
         pathCoordinates.push(p.x, p.y);
 
@@ -205,7 +216,8 @@
             x2: p.x + 0.01,
             y2: p.y
           }, options.classNames.point).attr({
-            'value': value,
+            'value.x': value.x,
+			'value.y': value.y,
             'meta': Chartist.getMetaData(series, valueIndex)
           }, Chartist.xmlNs.uri);
 
@@ -243,12 +255,12 @@
           var line = seriesGroups[seriesIndex].elem('path', {
             d: pathElements.join('')
           }, options.classNames.line, true).attr({
-            'values': normalizedData[seriesIndex]
+            'values': series.data
           }, Chartist.xmlNs.uri);
 
           this.eventEmitter.emit('draw', {
             type: 'line',
-            values: normalizedData[seriesIndex],
+            values: series.data,
             index: seriesIndex,
             group: seriesGroups[seriesIndex],
             element: line
@@ -274,12 +286,12 @@
           var area = seriesGroups[seriesIndex].elem('path', {
             d: areaPathElements.join('')
           }, options.classNames.area, true).attr({
-            'values': normalizedData[seriesIndex]
+            'values': series.data
           }, Chartist.xmlNs.uri);
 
           this.eventEmitter.emit('draw', {
             type: 'area',
-            values: normalizedData[seriesIndex],
+            values: series.data,
             index: seriesIndex,
             group: seriesGroups[seriesIndex],
             element: area
@@ -289,82 +301,16 @@
     }.bind(this));
 
     this.eventEmitter.emit('created', {
-      bounds: axisY.bounds,
+      boundsX: axisX.bounds,
+	  boundsY: axisY.bounds,
       chartRect: chartRect,
       svg: this.svg,
       options: options
     });
   }
 
-  /**
-   * This method creates a new line chart.
-   *
-   * @memberof Chartist.Line
-   * @param {String|Node} query A selector query string or directly a DOM element
-   * @param {Object} data The data object that needs to consist of a labels and a series array
-   * @param {Object} [options] The options object with options that override the default options. Check the examples for a detailed list.
-   * @param {Array} [responsiveOptions] Specify an array of responsive option arrays which are a media query and options object pair => [[mediaQueryString, optionsObject],[more...]]
-   * @return {Object} An object which exposes the API for the created chart
-   *
-   * @example
-   * // Create a simple line chart
-   * var data = {
-   *   // A labels array that can contain any sort of values
-   *   labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-   *   // Our series array that contains series objects or in this case series data arrays
-   *   series: [
-   *     [5, 2, 4, 2, 0]
-   *   ]
-   * };
-   *
-   * // As options we currently only set a static size of 300x200 px
-   * var options = {
-   *   width: '300px',
-   *   height: '200px'
-   * };
-   *
-   * // In the global name space Chartist we call the Line function to initialize a line chart. As a first parameter we pass in a selector where we would like to get our chart created. Second parameter is the actual data object and as a third parameter we pass in our options
-   * new Chartist.Line('.ct-chart', data, options);
-   *
-   * @example
-   * // Create a line chart with responsive options
-   *
-   * var data = {
-   *   // A labels array that can contain any sort of values
-   *   labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-   *   // Our series array that contains series objects or in this case series data arrays
-   *   series: [
-   *     [5, 2, 4, 2, 0]
-   *   ]
-   * };
-   *
-   * // In adition to the regular options we specify responsive option overrides that will override the default configutation based on the matching media queries.
-   * var responsiveOptions = [
-   *   ['screen and (min-width: 641px) and (max-width: 1024px)', {
-   *     showPoint: false,
-   *     axisX: {
-   *       labelInterpolationFnc: function(value) {
-   *         // Will return Mon, Tue, Wed etc. on medium screens
-   *         return value.slice(0, 3);
-   *       }
-   *     }
-   *   }],
-   *   ['screen and (max-width: 640px)', {
-   *     showLine: false,
-   *     axisX: {
-   *       labelInterpolationFnc: function(value) {
-   *         // Will return M, T, W etc. on small screens
-   *         return value[0];
-   *       }
-   *     }
-   *   }]
-   * ];
-   *
-   * new Chartist.Line('.ct-chart', data, null, responsiveOptions);
-   *
-   */
-  function Line(query, data, options, responsiveOptions) {
-    Chartist.Line.super.constructor.call(this,
+  function LineXY(query, data, options, responsiveOptions) {
+    Chartist.LineXY.super.constructor.call(this,
       query,
       data,
       Chartist.extend({}, defaultOptions, options),
@@ -372,8 +318,8 @@
   }
 
   // Creating line chart type in Chartist namespace
-  Chartist.Line = Chartist.Base.extend({
-    constructor: Line,
+  Chartist.LineXY = Chartist.Base.extend({
+    constructor: LineXY,
     createChart: createChart
   });
 
