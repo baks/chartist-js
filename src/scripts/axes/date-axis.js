@@ -7,14 +7,19 @@
 (function (window, document, Chartist) {
   'use strict';
 
-  function DateAxis(axisUnit, axisLength, options, ticksProvider) {
+  function DateAxis(axisUnit, ticksProvider) {
     Chartist.DateAxis.super.constructor.call(this,
       axisUnit,
-      axisLength,
-      options);
+      undefined,
+      undefined);
 
 	this.ticksProvider = ticksProvider;
-    this.ticks = ticksProvider.getTicks(options.highLow);
+	this.ticks = [];
+  }
+  
+  function initialize(axisLength, options) {
+	this.axisLength = axisLength;
+	this.ticks = this.ticksProvider.getTicks(options.highLow);
 	this.min = this.ticks[0].valueOf();
 	this.range = this.ticks[this.ticks.length-1].valueOf() - this.min;
   }
@@ -28,7 +33,8 @@
 
   Chartist.DateAxis = Chartist.Axis.extend({
     constructor: DateAxis,
-    projectValue: projectValue
+    projectValue: projectValue,
+	initialize: initialize
   });
 
 }(window, document, Chartist));

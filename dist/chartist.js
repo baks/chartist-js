@@ -2294,16 +2294,29 @@
       highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
       highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
 
-      var axisX = new Chartist.DateAxis(
+  	if (this.axisX) {
+            this.axisX.initialize(chartRect.x2 - chartRect.x1, {
+                highLow: highLowForX,
+                scaleMinSpace: options.axisX.scaleMinSpace
+            });
+        }
+
+        if (this.axisY) {
+            this.axisY.initialize(chartRect.y1 - chartRect.y2, {
+                highLow: highLowForY,
+                scaleMinSpace: options.axisY.scaleMinSpace
+            });
+        }
+
+      var axisX = this.axisX || new Chartist.LinearScaleAxis(
         Chartist.Axis.units.x,
         chartRect.x2 - chartRect.x1, {
           highLow: highLowForX,
           scaleMinSpace: options.axisX.scaleMinSpace
-        },
-  	  new Chartist.DateTicksProvider()
+        }
       );
 
-      var axisY = new Chartist.LinearScaleAxis(
+      var axisY = this.axisY || new Chartist.LinearScaleAxis(
         Chartist.Axis.units.y,
         chartRect.y1 - chartRect.y2, {
           highLow: highLowForY,
@@ -2488,14 +2501,14 @@
       });
     }
 
-    function LineXY(query, data, options, responsiveOptions, ticksXProvider, ticksYProvider) {
+    function LineXY(query, data, options, responsiveOptions, axisX, axisY) {
       Chartist.LineXY.super.constructor.call(this,
         query,
         data,
         Chartist.extend({}, defaultOptions, options),
         responsiveOptions);
-  	  this.ticksXProvider = ticksXProvider;
-  	  this.ticksYProvider = ticksYProvider;
+  	  this.axisX = axisX;
+  	  this.axisY = axisY;
     }
 
     // Creating line chart type in Chartist namespace
@@ -3156,14 +3169,19 @@
   (function (window, document, Chartist) {
     'use strict';
 
-    function DateAxis(axisUnit, axisLength, options, ticksProvider) {
+    function DateAxis(axisUnit, ticksProvider) {
       Chartist.DateAxis.super.constructor.call(this,
         axisUnit,
-        axisLength,
-        options);
+        undefined,
+        undefined);
 
   	this.ticksProvider = ticksProvider;
-      this.ticks = ticksProvider.getTicks(options.highLow);
+  	this.ticks = [];
+    }
+
+    function initialize(axisLength, options) {
+  	this.axisLength = axisLength;
+  	this.ticks = this.ticksProvider.getTicks(options.highLow);
   	this.min = this.ticks[0].valueOf();
   	this.range = this.ticks[this.ticks.length-1].valueOf() - this.min;
     }
@@ -3177,7 +3195,8 @@
 
     Chartist.DateAxis = Chartist.Axis.extend({
       constructor: DateAxis,
-      projectValue: projectValue
+      projectValue: projectValue,
+  	initialize: initialize
     });
 
   }(window, document, Chartist));
@@ -3254,181 +3273,67 @@
   (function(window, document, Chartist){
     'use strict';
   	function getTicks(highLow) {
-    		var startDate = highLow.low;
-    		var endDate = highLow.high;
+      		var startDate = highLow.low;
+      		var endDate = highLow.high;
 
-    		var duration = endDate - startDate;
-    		var bestResolution = getBestResolutionBasedOnDuration(duration);
+      		var duration = endDate - startDate;
+      		//var bestResolution = getBestResolutionBasedOnDuration(duration);
 
-    		var newStart = roundDown(new Date(startDate.getTime()), bestResolution);
-    		var newEnd = roundUp(new Date(endDate.getTime()), bestResolution);
+      		var newStart = this.roundDown(new Date(startDate.getTime())/*, bestResolution*/);
+      		var newEnd = this.roundUp(new Date(endDate.getTime())/*, bestResolution*/);
 
-    		var step = 1;
-    		var startTick = getStart(newStart, bestResolution);
-    		var endTick = addStep(newEnd, step, bestResolution);
+      		var step = 1;
+      		var startTick = this.getStart(newStart/*, bestResolution*/);
+      		var endTick = this.addStep(newEnd, step/*, bestResolution*/);
 
-    		var ticks = [];
-    		while(startTick.valueOf() < endTick.valueOf())
+      		var ticks = [];
+      		while(startTick.valueOf() < endTick.valueOf())
+      		{
+      			ticks.push(startTick);
+      			startTick = this.addStep(new Date(startTick.getTime()), step/*, bestResolution*/);
+      		}
+      		return ticks;
+      	}
+
+    	function getBestResolutionBasedOnDuration(duration) {
+    		if(duration > 31556952000)
     		{
-    			ticks.push(new Date(startTick.getTime()));
-    			startTick = addStep(startTick, step, bestResolution);
+    			return 0;
     		}
-    		return ticks;
+    		if(duration > 2592000000)
+    		{
+    			return 1;
+    		}
+    		if(duration > 86400000)
+    		{
+    			return 2;
+    		}
+    		if(duration > 3600000)
+    		{
+    			return 3;
+    		}
+    		if(duration > 60000)
+    		{
+    			return 4;
+    		}
+    		if(duration > 1000)
+    		{
+    			return 5;
+    		}
+
+    		return 6;
     	}
-
-  	function getBestResolutionBasedOnDuration(duration) {
-  		if(duration > 31556952000)
-  		{
-  			return 0;
-  		}
-  		if(duration > 2592000000)
-  		{
-  			return 1;
-  		}
-  		if(duration > 86400000)
-  		{
-  			return 2;
-  		}
-  		if(duration > 3600000)
-  		{
-  			return 3;
-  		}
-  		if(duration > 60000)
-  		{
-  			return 4;
-  		}
-  		if(duration > 1000)
-  		{
-  			return 5;
-  		}
-
-  		return 6;
+  	function addStep(date, step) {
   	}
 
-  	function addStep(date, step, resolution) {
-    		var res = date;
-    		switch (resolution)
-    		{
-    			case 0:
-    				res = date.setFullYear(date.getFullYear() + step);
-    				break;
-    			case 1:
-    				res = date.setMonth(date.getMonth() + step);
-    				break;
-    			case 2:
-    				res = date.setDate(date.getDate() + step);
-    				break;
-    			case 3:
-    				res = date.setHours(date.getHours() + step);
-    				break;
-    			case 4:
-    				res = date.setMinutes(date.getMinutes() + step);
-    				break;
-    			case 5:
-    				res = date.setSeconds(date.getSeconds() + step);
-    				break;
-    			case 6:
-    				res = date.setMilliseconds(date.getMilliseconds() + step);
-    				break;
-    			default:
-    				break;
-    		}
-    		return res;
-    	}
+  	function getStart(date) {
+  	}
 
-    	function getStart(date, resolution) {
-    		var res = date;
-    		switch (resolution) {
-    		    case 0:
-    		        res = new Date(date.getFullYear(),1, 0,0,0,0,0);
-    		        break;
-    		    case 1:
-  				res = new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
-    		        break;
-    		    case 2:
-  				res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
-    		        break;
-    		    case 3:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
-    		        break;
-    		    case 4:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
-    		        break;
-    		    case 5:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
-    		        break;
-    		    case 6:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
-    		        break;
-    		    default:
-    		        break;
-    		}
-    		return res;
-    	}
+  	function roundDown(date) {
+  	}
 
-    	function roundDown(date, resolution) {
-    		var res = date;
-    		switch (resolution)
-    		{
-  			case 0:
-    		        res = new Date(date.getFullYear(),1, 0,0,0,0,0);
-    		        break;
-    		    case 1:
-  				res = new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
-    		        break;
-    		    case 2:
-  				res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
-    		        break;
-    		    case 3:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
-    		        break;
-    		    case 4:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
-    		        break;
-    		    case 5:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
-    		        break;
-    		    case 6:
-    		        res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
-    		        break;
-    		    default:
-    		        break;
-    		}
-
-    		return res;
-    	}
-
-    	function roundUp(date, resolution) {
-    		var res= roundDown(date,resolution);
-  		switch (resolution)
-  		{
-    			case 0:
-    				res = date.setFullYear(date.getFullYear() + 1);
-    				break;
-    			case 1:
-    				res = date.setMonth(date.getMonth() + 1);
-    				break;
-    			case 2:
-    				res = date.setDate(date.getDate() + 1);
-    				break;
-    			case 3:
-    				res = date.setHours(date.getHours() + 1);
-    				break;
-    			case 4:
-    				res = date.setMinutes(date.getMinutes() + 1);
-    				break;
-    			case 5:
-    				res = date.setSeconds(date.getSeconds() + 1);
-    				break;
-    			case 6:
-    				res = date.setMilliseconds(date.getMilliseconds() + 1);
-    				break;
-    			default:
-    				break;
-    		}
-
-    		return res;
-    	}
+  	function roundUp(date) {
+  	}
 
   	function DateTicksProvider() {
   	}
@@ -3436,7 +3341,304 @@
     // Creating date tick provider type in Chartist namespace
     Chartist.DateTicksProvider = Chartist.Base.extend({
       constructor: DateTicksProvider,
-      getTicks: getTicks
+      getTicks: getTicks,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Year Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.YearTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+  		function addStep(date, step) {
+  			date.setFullYear(date.getFullYear() + step);
+  			return date;
+      	}
+
+      	function getStart(date) {
+      		return new Date(date.getFullYear(),1, 0,0,0,0,0);
+      	}
+
+      	function roundDown(date) {
+      		 return new Date(date.getFullYear(),1, 0,0,0,0,0);
+      	}
+
+      	function roundUp(date) {
+      	    var res = roundDown(date);
+  			res.setFullYear(date.getFullYear() + 1);
+  			return res;
+      	}
+
+  	function YearTicksProvider() {
+  	}
+
+    // Creating year tick provider type in Chartist namespace
+    Chartist.YearTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: YearTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Month Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.MonthTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+
+    	function addStep(date, step) {
+      	date.setMonth(date.getMonth() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
+  	}
+
+  	function roundUp(date) {
+  		var res = roundDown(date);
+  		res.setMonth(date.getMonth() + 1);
+  		return res;
+  	}
+
+  	function MonthTicksProvider() {
+  	}
+
+    // Creating month tick provider type in Chartist namespace
+    Chartist.MonthTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: MonthTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Day Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.DayTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+
+    	function addStep(date, step) {
+      	date.setDate(date.getDate() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
+  	}
+
+  	function roundUp(date) {
+  		var res = roundDown(date);
+  		res.setDate(date.getDate() + 1);
+  		return res;
+  	}
+
+  	function DayTicksProvider() {
+  	}
+
+    // Creating day tick provider type in Chartist namespace
+    Chartist.DayTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: DayTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Hour Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.HourTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+
+    	function addStep(date, step) {
+      	date.setHours(date.getHours() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
+  	}
+
+  	function roundUp(date) {
+  		var res = roundDown(date);
+  		res.setHours(date.getHours() + 1);
+  		return res;
+  	}
+
+  	function HourTicksProvider() {
+  	}
+
+    // Creating hour tick provider type in Chartist namespace
+    Chartist.HourTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: HourTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Minute Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.MinuteTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+
+    	function addStep(date, step) {
+      	date.setMinutes(date.getMinutes() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
+  	}
+
+  	function roundUp(date) {
+  		var res = roundDown(date);
+  		res.setMinutes(date.getMinutes() + 1);
+  		return res;
+  	}
+
+  	function MinuteTicksProvider() {
+  	}
+
+    // Creating minute tick provider type in Chartist namespace
+    Chartist.MinuteTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: MinuteTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Seconds Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.SecondsTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+    	function addStep(date, step) {
+      	date.setSeconds(date.getSeconds() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
+  	}
+
+  	function roundUp(date) {
+  		var res = roundDown(date);
+  		res.setSeconds(date.getSeconds() + 1);
+  		return res;
+  	}
+
+  	function SecondsTicksProvider() {
+  	}
+
+    // Creating seconds tick provider type in Chartist namespace
+    Chartist.SecondsTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: SecondsTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+    });
+
+  }(window, document, Chartist));;/**
+   * Milliseconds Ticks Provider
+   *
+   * 
+   *
+   * @module Chartist.MillisecondsTicksProvider
+   */
+  /* global Chartist */
+  (function(window, document, Chartist){
+    'use strict';
+
+    	function addStep(date, step) {
+      	date.setMilliseconds(date.getMilliseconds() + step);
+  		return date;
+  	}
+
+  	function getStart(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
+  	}
+
+  	function roundDown(date) {
+  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
+  	}
+
+  	function roundUp(date) {
+      	    var res = roundDown(date, resolution);
+  			res.setMilliseconds(date.getMilliseconds() + 1);
+      		return res;
+      	}
+
+  	function MillisecondsTicksProvider() {
+  	}
+
+    // Creating ms tick provider type in Chartist namespace
+    Chartist.MillisecondsTicksProvider = Chartist.DateTicksProvider.extend({
+      constructor: MillisecondsTicksProvider,
+  	addStep: addStep,
+  	roundDown: roundDown,
+  	roundUp: roundUp,
+  	getStart: getStart
+
     });
 
   }(window, document, Chartist));

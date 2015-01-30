@@ -115,17 +115,30 @@
     // Overrides of high / low from settings
     highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
     highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
+	
+	if (this.axisX) {
+          this.axisX.initialize(chartRect.x2 - chartRect.x1, {
+              highLow: highLowForX,
+              scaleMinSpace: options.axisX.scaleMinSpace
+          });
+      }
 
-    var axisX = new Chartist.DateAxis(
+      if (this.axisY) {
+          this.axisY.initialize(chartRect.y1 - chartRect.y2, {
+              highLow: highLowForY,
+              scaleMinSpace: options.axisY.scaleMinSpace
+          });
+      }
+
+    var axisX = this.axisX || new Chartist.LinearScaleAxis(
       Chartist.Axis.units.x,
       chartRect.x2 - chartRect.x1, {
         highLow: highLowForX,
         scaleMinSpace: options.axisX.scaleMinSpace
-      },
-	  new Chartist.DateTicksProvider()
+      }
     );
 
-    var axisY = new Chartist.LinearScaleAxis(
+    var axisY = this.axisY || new Chartist.LinearScaleAxis(
       Chartist.Axis.units.y,
       chartRect.y1 - chartRect.y2, {
         highLow: highLowForY,
@@ -310,14 +323,14 @@
     });
   }
 
-  function LineXY(query, data, options, responsiveOptions, ticksXProvider, ticksYProvider) {
+  function LineXY(query, data, options, responsiveOptions, axisX, axisY) {
     Chartist.LineXY.super.constructor.call(this,
       query,
       data,
       Chartist.extend({}, defaultOptions, options),
       responsiveOptions);
-	  this.ticksXProvider = ticksXProvider;
-	  this.ticksYProvider = ticksYProvider;
+	  this.axisX = axisX;
+	  this.axisY = axisY;
   }
 
   // Creating line chart type in Chartist namespace
