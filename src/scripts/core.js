@@ -4,7 +4,7 @@
  * @module Chartist.Core
  */
 var Chartist = {
-  version: '0.6.1'
+  version: '0.7.0'
 };
 
 (function (window, document, Chartist) {
@@ -65,7 +65,7 @@ var Chartist = {
    * @param {String} str
    * @param {String} subStr
    * @param {String} newSubStr
-   * @returns {String}
+   * @return {String}
    */
   Chartist.replaceAll = function(str, subStr, newSubStr) {
     return str.replace(new RegExp(subStr, 'g'), newSubStr);
@@ -76,7 +76,7 @@ var Chartist = {
    *
    * @memberof Chartist.Core
    * @param {String|Number} value
-   * @returns {Number} Returns the string as number or NaN if the passed length could not be converted to pixel
+   * @return {Number} Returns the string as number or NaN if the passed length could not be converted to pixel
    */
   Chartist.stripUnit = function(value) {
     if(typeof value === 'string') {
@@ -92,7 +92,7 @@ var Chartist = {
    * @memberof Chartist.Core
    * @param {Number} value
    * @param {String} unit
-   * @returns {String} Returns the passed number value with unit.
+   * @return {String} Returns the passed number value with unit.
    */
   Chartist.ensureUnit = function(value, unit) {
     if(typeof value === 'number') {
@@ -118,7 +118,7 @@ var Chartist = {
    *
    * @memberof Chartist.Core
    * @param length
-   * @returns {Array}
+   * @return {Array}
    */
   Chartist.times = function(length) {
     return Array.apply(null, new Array(length));
@@ -130,7 +130,7 @@ var Chartist = {
    * @memberof Chartist.Core
    * @param previous
    * @param current
-   * @returns {*}
+   * @return {*}
    */
   Chartist.sum = function(previous, current) {
     return previous + current;
@@ -142,7 +142,7 @@ var Chartist = {
    * @memberof Chartist.Core
    * @param arr
    * @param cb
-   * @returns {Array}
+   * @return {Array}
    */
   Chartist.serialMap = function(arr, cb) {
     var result = [],
@@ -181,7 +181,7 @@ var Chartist = {
    *
    * @memberof Chartist.Core
    * @param {Number|String|Object} data
-   * @returns {String}
+   * @return {String}
    */
   Chartist.serialize = function(data) {
     if(data === null || data === undefined) {
@@ -202,7 +202,7 @@ var Chartist = {
    *
    * @memberof Chartist.Core
    * @param {String} data
-   * @returns {String|Number|Object}
+   * @return {String|Number|Object}
    */
   Chartist.deserialize = function(data) {
     if(typeof data !== 'string') {
@@ -259,17 +259,45 @@ var Chartist = {
     return svg;
   };
 
+
+  /**
+   * Reverses the series, labels and series data arrays.
+   *
+   * @memberof Chartist.Core
+   * @param data
+   */
+  Chartist.reverseData = function(data) {
+    data.labels.reverse();
+    data.series.reverse();
+    for (var i = 0; i < data.series.length; i++) {
+      if(typeof(data.series[i]) === 'object' && data.series[i].data !== undefined) {
+        data.series[i].data.reverse();
+      } else {
+        data.series[i].reverse();
+      }
+    }
+  };
+
   /**
    * Convert data series into plain array
    *
    * @memberof Chartist.Core
    * @param {Object} data The series object that contains the data to be visualized in the chart
+   * @param {Boolean} reverse If true the whole data is reversed by the getDataArray call. This will modify the data object passed as first parameter. The labels as well as the series order is reversed. The whole series data arrays are reversed too.
    * @return {Array} A plain array that contains the data to be visualized in the chart
    */
-  Chartist.getDataArray = function (data) {
+  Chartist.getDataArray = function (data, reverse) {
     var array = [],
       value,
       localData;
+
+    // If the data should be reversed but isn't we need to reverse it
+    // If it's reversed but it shouldn't we need to reverse it back
+    // That's required to handle data updates correctly and to reflect the responsive configurations
+    if(reverse && !data.reversed || !reverse && data.reversed) {
+      Chartist.reverseData(data);
+      data.reversed = !data.reversed;
+    }
 
     for (var i = 0; i < data.series.length; i++) {
       // If the series array contains an object with a data property we will use the property
@@ -283,11 +311,10 @@ var Chartist = {
         array[i] = localData;
       }
 
-
       // Convert object values to numbers
       for (var j = 0; j < array[i].length; j++) {
         value = array[i][j];
-        value = value.value || value;
+        value = value.value === 0 ? 0 : (value.value || value);
         array[i][j] = +value;
       }
     }
@@ -524,6 +551,19 @@ var Chartist = {
     };
   };
 
+  /**
+   * Creates a grid line based on a projected value.
+   *
+   * @memberof Chartist.Core
+   * @param projectedValue
+   * @param index
+   * @param axis
+   * @param offset
+   * @param length
+   * @param group
+   * @param classes
+   * @param eventEmitter
+   */
   Chartist.createGrid = function(projectedValue, index, axis, offset, length, group, classes, eventEmitter) {
     var positionalData = {};
     positionalData[axis.units.pos + '1'] = projectedValue.pos;
@@ -545,7 +585,22 @@ var Chartist = {
     );
   };
 
-  Chartist.createLabels = function(projectedValue, index, labels, axis, axisOffset, labelOffset, group, classes, useForeignObject, eventEmitter) {
+  /**
+   * Creates a label based on a projected value and an axis.
+   *
+   * @memberof Chartist.Core
+   * @param projectedValue
+   * @param index
+   * @param labels
+   * @param axis
+   * @param axisOffset
+   * @param labelOffset
+   * @param group
+   * @param classes
+   * @param useForeignObject
+   * @param eventEmitter
+   */
+  Chartist.createLabel = function(projectedValue, index, labels, axis, axisOffset, labelOffset, group, classes, useForeignObject, eventEmitter) {
     var labelElement,
       positionalData = {};
     positionalData[axis.units.pos] = projectedValue.pos + labelOffset[axis.units.pos];
@@ -572,9 +627,22 @@ var Chartist = {
     }, positionalData));
   };
 
-  Chartist.drawAxis = function(axis, data, transform, chartRect, gridGroup, gridOffset, labelGroup, labelOffset, useForeignObject, options, eventEmitter) {
+  /**
+   * This function creates a whole axis with its grid lines and labels based on an axis model and a chartRect.
+   *
+   * @memberof Chartist.Core
+   * @param axis
+   * @param data
+   * @param chartRect
+   * @param gridGroup
+   * @param labelGroup
+   * @param useForeignObject
+   * @param options
+   * @param eventEmitter
+   */
+  Chartist.createAxis = function(axis, data, chartRect, gridGroup, labelGroup, useForeignObject, options, eventEmitter) {
     var axisOptions = options['axis' + axis.units.pos.toUpperCase()],
-      projectedValues = data.map(axis.projectValue.bind(axis)).map(transform),
+      projectedValues = data.map(axis.projectValue.bind(axis)).map(axis.transform),
       labelValues = data.map(axisOptions.labelInterpolationFnc);
 
     projectedValues.forEach(function(projectedValue, index) {
@@ -584,14 +652,14 @@ var Chartist = {
       }
 
       if(axisOptions.showGrid) {
-        Chartist.createGrid(projectedValue, index, axis, gridOffset, chartRect[axis.counterUnits.len](), gridGroup, [
+        Chartist.createGrid(projectedValue, index, axis, axis.gridOffset, chartRect[axis.counterUnits.len](), gridGroup, [
           options.classNames.grid,
           options.classNames[axis.units.dir]
         ], eventEmitter);
       }
 
       if(axisOptions.showLabel) {
-        Chartist.createLabels(projectedValue, index, labelValues, axis, axisOptions.offset, labelOffset, labelGroup, [
+        Chartist.createLabel(projectedValue, index, labelValues, axis, axisOptions.offset, axis.labelOffset, labelGroup, [
           options.classNames.label,
           options.classNames[axis.units.dir]
         ], useForeignObject, eventEmitter);
@@ -599,7 +667,6 @@ var Chartist = {
     });
   };
 
-  // TODO: With multiple media queries the handleMediaChange function is triggered too many times, only need one
   /**
    * Provides options handling functionality with callback for options changes triggered by responsive options and media query matches
    *
