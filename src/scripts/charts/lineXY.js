@@ -103,7 +103,6 @@
 	
 	var yValues = [];
 	var xValues = [];
-	var seriesTmp = [];
 	
 	this.data.series.forEach(function(series, seriesIndex) {
 		xValues[seriesIndex] = [];

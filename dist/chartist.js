@@ -2240,7 +2240,7 @@
 
     function projectValue(value) {
       return {
-        pos: this.axisLength * (value - this.bounds.min) / (this.bounds.range + this.bounds.step),
+        pos: this.units.pos == 'x' ? this.axisLength * (value - this.bounds.low) / (this.bounds.valueRange) : this.axisLength * (value - this.bounds.min) / (this.bounds.range + this.bounds.step),
         len: Chartist.projectLength(this.axisLength, this.bounds.step, this.bounds)
       };
     }
@@ -3024,7 +3024,7 @@
         responsiveOptions);
   	  this.axisX = axisX;
   	  this.axisY = axisY;
-  	  this.dataTransform = dataTransform || function(value) { return value; };
+  	  this.dataTransform = dataTransform || Chartist.noop;
     }
 
     // Creating line chart type in Chartist namespace
@@ -3674,55 +3674,6 @@
 
   }(window, document, Chartist));
   ;/**
-   * Axis base class used to implement different axis types
-   *
-   * @module Chartist.Axis
-   */
-  /* global Chartist */
-  (function (window, document, Chartist) {
-    'use strict';
-
-    var axisUnits = {
-      x: {
-        pos: 'x',
-        len: 'width',
-        dir: 'horizontal',
-        rectStart: 'x1',
-        rectEnd: 'x2',
-        rectOffset: 'y2'
-      },
-      y: {
-        pos: 'y',
-        len: 'height',
-        dir: 'vertical',
-        rectStart: 'y2',
-        rectEnd: 'y1',
-        rectOffset: 'x1'
-      }
-    };
-
-    function Axis(units, chartRect, transform, labelOffset, options) {
-      this.units = units;
-      this.counterUnits = units === axisUnits.x ? axisUnits.y : axisUnits.x;
-      this.chartRect = chartRect;
-      this.axisLength = chartRect[units.rectEnd] - chartRect[units.rectStart];
-      this.gridOffset = chartRect[units.rectOffset];
-      this.transform = transform;
-      this.labelOffset = labelOffset;
-      this.options = options;
-    }
-
-    Chartist.Axis = Chartist.Class.extend({
-      constructor: Axis,
-      projectValue: function(value, index, data) {
-        throw new Error('Base axis can\'t be instantiated!');
-      }
-    });
-
-    Chartist.Axis.units = axisUnits;
-
-  }(window, document, Chartist));
-  ;/**
    * Step axis for step based charts like bar chart or step based line chart
    *
    * @module Chartist.DateAxis
@@ -3742,15 +3693,14 @@
 
     function initialize(chartRect, transform, labelOffset, highLow) {
   	this.chartRect = chartRect;
-	  this.axisLength = chartRect[this.units.rectEnd] - chartRect[this.units.rectStart];
-	  this.gridOffset = chartRect[this.units.rectOffset];
+      this.axisLength = chartRect[this.units.rectEnd] - chartRect[this.units.rectStart];
+      this.gridOffset = chartRect[this.units.rectOffset];
   	this.transform = transform;
   	this.labelOffset = labelOffset;
 
 
   	this.ticks = this.ticksProvider.getTicks(highLow);
   	this.min = this.ticks[0].valueOf();
-	console.log(this.min);
   	this.range = this.ticks[this.ticks.length-1].valueOf() - this.min;
     }
 
@@ -3768,72 +3718,6 @@
     });
 
   }(window, document, Chartist));;/**
-   * Step axis for step based charts like bar chart or step based line chart
-   *
-   * @module Chartist.StepAxis
-   */
-  /* global Chartist */
-  (function (window, document, Chartist) {
-    'use strict';
-
-    function StepAxis(axisUnit, chartRect, transform, labelOffset, options) {
-      Chartist.StepAxis.super.constructor.call(this,
-        axisUnit,
-        chartRect,
-        transform,
-        labelOffset,
-        options);
-
-      this.stepLength = this.axisLength / (options.stepCount - (options.stretch ? 1 : 0));
-    }
-
-    function projectValue(value, index) {
-      return {
-        pos: this.stepLength * index,
-        len: this.stepLength
-      };
-    }
-
-    Chartist.StepAxis = Chartist.Axis.extend({
-      constructor: StepAxis,
-      projectValue: projectValue
-    });
-
-  }(window, document, Chartist));
-  ;/**
-   * The linear scale axis uses standard linear scale projection of values along an axis.
-   *
-   * @module Chartist.LinearScaleAxis
-   */
-  /* global Chartist */
-  (function (window, document, Chartist) {
-    'use strict';
-
-    function LinearScaleAxis(axisUnit, chartRect, transform, labelOffset, options) {
-      Chartist.LinearScaleAxis.super.constructor.call(this,
-        axisUnit,
-        chartRect,
-        transform,
-        labelOffset,
-        options);
-
-      this.bounds = Chartist.getBounds(this.axisLength, options.highLow, options.scaleMinSpace, options.referenceValue);
-    }
-
-    function projectValue(value) {
-      return {
-        pos: this.units.pos == 'x' ? this.axisLength * (value - this.bounds.low) / (this.bounds.valueRange) : this.axisLength * (value - this.bounds.min) / (this.bounds.range + this.bounds.step),
-        len: Chartist.projectLength(this.axisLength, this.bounds.step, this.bounds)
-      };
-    }
-
-    Chartist.LinearScaleAxis = Chartist.Axis.extend({
-      constructor: LinearScaleAxis,
-      projectValue: projectValue
-    });
-
-  }(window, document, Chartist));
-  ;/**
    * Date Ticks Provider
    *
    * 
@@ -3848,52 +3732,23 @@
       		var endDate = highLow.high;
 
       		var duration = endDate - startDate;
-      		//var bestResolution = getBestResolutionBasedOnDuration(duration);
-      		var newStart = this.roundDown(new Date(startDate.getTime())/*, bestResolution*/);
-      		var newEnd = this.roundUp(new Date(endDate.getTime())/*, bestResolution*/);
-			console.log(newEnd);
+
+      		var newStart = this.roundDown(new Date(startDate.getTime()));
+      		var newEnd = this.roundUp(new Date(endDate.getTime()));
+
       		var step = 1;
-      		var startTick = this.getStart(newStart/*, bestResolution*/);
-			//console.log(startTick);
-      		var endTick = this.addStep(newEnd, step/*, bestResolution*/);
+      		var startTick = this.getStart(newStart);
+      		var endTick = this.addStep(newEnd, step);
 
       		var ticks = [];
       		while(startTick.valueOf() < endTick.valueOf())
       		{
       			ticks.push(startTick);
-      			startTick = this.addStep(new Date(startTick.getTime()), step/*, bestResolution*/);
+      			startTick = this.addStep(new Date(startTick.getTime()), step);
       		}
       		return ticks;
       	}
 
-    	function getBestResolutionBasedOnDuration(duration) {
-    		if(duration > 31556952000)
-    		{
-    			return 0;
-    		}
-    		if(duration > 2592000000)
-    		{
-    			return 1;
-    		}
-    		if(duration > 86400000)
-    		{
-    			return 2;
-    		}
-    		if(duration > 3600000)
-    		{
-    			return 3;
-    		}
-    		if(duration > 60000)
-    		{
-    			return 4;
-    		}
-    		if(duration > 1000)
-    		{
-    			return 5;
-    		}
-
-    		return 6;
-    	}
   	function addStep(date, step) {
   	}
 
