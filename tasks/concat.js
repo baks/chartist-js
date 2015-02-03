@@ -33,6 +33,7 @@ module.exports = function (grunt) {
 		  '<%= pkg.config.src %>/scripts/axes/step-axis.js',
 		  '<%= pkg.config.src %>/scripts/axes/linear-scale-axis.js',
 		  '<%= pkg.config.src %>/scripts/ticks/date/date-ticks-provider.js',
+		  '<%= pkg.config.src %>/scripts/ticks/date/resolution-based-date-ticks-provider.js',
 		  '<%= pkg.config.src %>/scripts/ticks/date/year-ticks-provider.js',
 		  '<%= pkg.config.src %>/scripts/ticks/date/month-ticks-provider.js',
 		  '<%= pkg.config.src %>/scripts/ticks/date/day-ticks-provider.js',

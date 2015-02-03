@@ -23,7 +23,7 @@
 	}
 
 	function roundUp(date) {
-    	    var res = roundDown(date, resolution);
+    	    var res = roundDown(date);
 			res.setMilliseconds(date.getMilliseconds() + 1);
     		return res;
     	}
