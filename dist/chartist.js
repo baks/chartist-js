@@ -2285,6 +2285,50 @@
 
   }(window, document, Chartist));
   ;/**
+   * Step axis for step based charts like bar chart or step based line chart
+   *
+   * @module Chartist.DateAxis
+   */
+  /* global Chartist */
+  (function(window, document, Chartist) {
+      'use strict';
+
+      function DateAxis(units, options) {
+          this.units = units;
+          this.counterUnits = units === Chartist.Axis.units.x ? Chartist.Axis.units.y : Chartist.Axis.units.x;
+          this.options = options || {};
+
+          this.ticksProvider = this.options.ticksProvider || new Chartist.DateTicksProvider();
+          this.ticks = [];
+      }
+
+      function initialize(chartRect, transform, labelOffset, highLow) {
+          this.chartRect = chartRect;
+          this.axisLength = chartRect[this.units.rectEnd] - chartRect[this.units.rectStart];
+          this.gridOffset = chartRect[this.units.rectOffset];
+          this.transform = transform;
+          this.labelOffset = labelOffset;
+
+
+          this.ticks = this.ticksProvider.getTicks(highLow);
+          this.min = this.ticks[0].valueOf();
+          this.range = this.ticks[this.ticks.length - 1].valueOf() - this.min;
+      }
+
+      function projectValue(value) {
+          return {
+              pos: value * (this.axisLength / this.range) - this.min * (this.axisLength / this.range),
+              len: Chartist.projectLength(this.axisLength, 1, this)
+          };
+      }
+
+      Chartist.DateAxis = Chartist.Axis.extend({
+          constructor: DateAxis,
+          projectValue: projectValue,
+          initialize: initialize
+      });
+
+  }(window, document, Chartist));;/**
    * The Chartist line chart can be used to draw Line or Scatter charts. If used in the browser you can access the global `Chartist` namespace where you find the `Line` function as a main entry point.
    *
    * For examples on how to use the line chart please check the examples of the `Chartist.Line` method.
@@ -2292,746 +2336,606 @@
    * @module Chartist.Line
    */
   /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
+  (function(window, document, Chartist) {
+      'use strict';
 
-    /**
-     * Default options in line charts. Expand the code view to see a detailed list of options with comments.
-     *
-     * @memberof Chartist.Line
-     */
-    var defaultOptions = {
-      // Options for X-Axis
-      axisX: {
-        // The offset of the labels to the chart area
-        offset: 30,
-        // Allows you to correct label positioning on this axis by positive or negative x and y offset.
-        labelOffset: {
-          x: 0,
-          y: 0
-        },
-        // If labels should be shown or not
-        showLabel: true,
-        // If the axis grid should be drawn or not
-        showGrid: true,
-        // Interpolation function that allows you to intercept the value from the axis label
-        labelInterpolationFnc: Chartist.noop
-      },
-      // Options for Y-Axis
-      axisY: {
-        // The offset of the labels to the chart area
-        offset: 40,
-        // Allows you to correct label positioning on this axis by positive or negative x and y offset.
-        labelOffset: {
-          x: 0,
-          y: 0
-        },
-        // If labels should be shown or not
-        showLabel: true,
-        // If the axis grid should be drawn or not
-        showGrid: true,
-        // Interpolation function that allows you to intercept the value from the axis label
-        labelInterpolationFnc: Chartist.noop,
-        // This value specifies the minimum height in pixel of the scale steps
-        scaleMinSpace: 20
-      },
-      // Specify a fixed width for the chart as a string (i.e. '100px' or '50%')
-      width: undefined,
-      // Specify a fixed height for the chart as a string (i.e. '100px' or '50%')
-      height: undefined,
-      // If the line should be drawn or not
-      showLine: true,
-      // If dots should be drawn or not
-      showPoint: true,
-      // If the line chart should draw an area
-      showArea: false,
-      // The base for the area chart that will be used to close the area shape (is normally 0)
-      areaBase: 0,
-      // Specify if the lines should be smoothed (Catmull-Rom-Splines will be used)
-      lineSmooth: true,
-      // Overriding the natural low of the chart allows you to zoom in or limit the charts lowest displayed value
-      low: undefined,
-      // Overriding the natural high of the chart allows you to zoom in or limit the charts highest displayed value
-      high: undefined,
-      // Padding of the chart drawing area to the container element and labels
-      chartPadding: 5,
-      // When set to true, the last grid line on the x-axis is not drawn and the chart elements will expand to the full available width of the chart. For the last label to be drawn correctly you might need to add chart padding or offset the last label with a draw event handler.
-      fullWidth: false,
-      // If true the whole data is reversed including labels, the series order as well as the whole series data arrays.
-      reverseData: false,
-      // Override the class names that get used to generate the SVG structure of the chart
-      classNames: {
-        chart: 'ct-chart-line',
-        label: 'ct-label',
-        labelGroup: 'ct-labels',
-        series: 'ct-series',
-        line: 'ct-line',
-        point: 'ct-point',
-        area: 'ct-area',
-        grid: 'ct-grid',
-        gridGroup: 'ct-grids',
-        vertical: 'ct-vertical',
-        horizontal: 'ct-horizontal'
+      /**
+       * Default options in line charts. Expand the code view to see a detailed list of options with comments.
+       *
+       * @memberof Chartist.Line
+       */
+      var defaultOptions = {
+          // Options for X-Axis
+          axisX: {
+              // The offset of the labels to the chart area
+              offset: 30,
+              // Allows you to correct label positioning on this axis by positive or negative x and y offset.
+              labelOffset: {
+                  x: 0,
+                  y: 0
+              },
+              // If labels should be shown or not
+              showLabel: true,
+              // If the axis grid should be drawn or not
+              showGrid: true,
+              // Interpolation function that allows you to intercept the value from the axis label
+              labelInterpolationFnc: Chartist.noop
+          },
+          // Options for Y-Axis
+          axisY: {
+              // The offset of the labels to the chart area
+              offset: 40,
+              // Allows you to correct label positioning on this axis by positive or negative x and y offset.
+              labelOffset: {
+                  x: 0,
+                  y: 0
+              },
+              // If labels should be shown or not
+              showLabel: true,
+              // If the axis grid should be drawn or not
+              showGrid: true,
+              // Interpolation function that allows you to intercept the value from the axis label
+              labelInterpolationFnc: Chartist.noop,
+              // This value specifies the minimum height in pixel of the scale steps
+              scaleMinSpace: 20
+          },
+          // Specify a fixed width for the chart as a string (i.e. '100px' or '50%')
+          width: undefined,
+          // Specify a fixed height for the chart as a string (i.e. '100px' or '50%')
+          height: undefined,
+          // If the line should be drawn or not
+          showLine: true,
+          // If dots should be drawn or not
+          showPoint: true,
+          // If the line chart should draw an area
+          showArea: false,
+          // The base for the area chart that will be used to close the area shape (is normally 0)
+          areaBase: 0,
+          // Specify if the lines should be smoothed (Catmull-Rom-Splines will be used)
+          lineSmooth: true,
+          // Overriding the natural low of the chart allows you to zoom in or limit the charts lowest displayed value
+          low: undefined,
+          // Overriding the natural high of the chart allows you to zoom in or limit the charts highest displayed value
+          high: undefined,
+          // Padding of the chart drawing area to the container element and labels
+          chartPadding: 5,
+          // When set to true, the last grid line on the x-axis is not drawn and the chart elements will expand to the full available width of the chart. For the last label to be drawn correctly you might need to add chart padding or offset the last label with a draw event handler.
+          fullWidth: false,
+          // If true the whole data is reversed including labels, the series order as well as the whole series data arrays.
+          reverseData: false,
+          // Override the class names that get used to generate the SVG structure of the chart
+          classNames: {
+              chart: 'ct-chart-line',
+              label: 'ct-label',
+              labelGroup: 'ct-labels',
+              series: 'ct-series',
+              line: 'ct-line',
+              point: 'ct-point',
+              area: 'ct-area',
+              grid: 'ct-grid',
+              gridGroup: 'ct-grids',
+              vertical: 'ct-vertical',
+              horizontal: 'ct-horizontal'
+          }
+      };
+
+      /**
+       * Creates a new chart
+       *
+       */
+      function createChart(options) {
+          var seriesGroups = [];
+          // Create new svg object
+          this.svg = Chartist.createSvg(this.container, options.width, options.height, options.classNames.chart);
+
+          var chartRect = Chartist.createChartRect(this.svg, options);
+
+          // Start drawing
+          var labelGroup = this.svg.elem('g').addClass(options.classNames.labelGroup),
+              gridGroup = this.svg.elem('g').addClass(options.classNames.gridGroup),
+              drawContext = {
+                  chartRect: chartRect,
+                  seriesGroups: seriesGroups,
+                  labelGroup: labelGroup,
+                  gridGroup: gridGroup
+              };
+
+  		var seriesData = this.getSeriesData(drawContext, options);
+  		drawContext.seriesData = seriesData;
+
+          var axes = this.getAndDrawAxes(drawContext, options);
+
+          var axisX = axes.axisX,
+              axisY = axes.axisY;
+
+          drawContext.axisX = axisX;
+          drawContext.axisY = axisY;
+
+          // Draw the series
+          this.data.series.forEach(function(series, seriesIndex) {
+              seriesGroups[seriesIndex] = this.svg.elem('g');
+
+              // Write attributes to series group element. If series name or meta is undefined the attributes will not be written
+              seriesGroups[seriesIndex].attr({
+                  'series-name': series.name,
+                  'meta': Chartist.serialize(series.meta)
+              }, Chartist.xmlNs.uri);
+
+              // Use series class from series data or if not set generate one
+              seriesGroups[seriesIndex].addClass([
+                  options.classNames.series, (series.className || options.classNames.series + '-' + Chartist.alphaNumerate(seriesIndex))
+              ].join(' '));
+
+              var pathCoordinates = this.getPathCoordinatesAndDrawPoints(drawContext, seriesIndex, options);
+
+              // TODO: Nicer handling of conditions, maybe composition?
+              if (options.showLine || options.showArea) {
+                  var path = new Chartist.Svg.Path().move(pathCoordinates[0], pathCoordinates[1]);
+
+                  // If smoothed path and path has more than two points then use catmull rom to bezier algorithm
+                  if (options.lineSmooth && pathCoordinates.length > 4) {
+
+                      var cr = Chartist.catmullRom2bezier(pathCoordinates);
+                      for (var k = 0; k < cr.length; k++) {
+                          Chartist.Svg.Path.prototype.curve.apply(path, cr[k]);
+                      }
+                  } else {
+                      for (var l = 3; l < pathCoordinates.length; l += 2) {
+                          path.line(pathCoordinates[l - 1], pathCoordinates[l]);
+                      }
+                  }
+
+                  if (options.showLine) {
+                      var line = seriesGroups[seriesIndex].elem('path', {
+                          d: path.stringify()
+                      }, options.classNames.line, true).attr({
+                          'values': seriesData[seriesIndex]
+                      }, Chartist.xmlNs.uri);
+
+                      this.eventEmitter.emit('draw', {
+                          type: 'line',
+                          values: seriesData[seriesIndex],
+                          path: path.clone(),
+                          chartRect: chartRect,
+                          index: seriesIndex,
+                          group: seriesGroups[seriesIndex],
+                          element: line
+                      });
+                  }
+
+                  if (options.showArea) {
+                      // If areaBase is outside the chart area (< low or > high) we need to set it respectively so that
+                      // the area is not drawn outside the chart area.
+                      var areaBase = Math.max(Math.min(options.areaBase, axisY.bounds.max), axisY.bounds.min);
+
+                      // We project the areaBase value into screen coordinates
+                      var areaBaseProjected = chartRect.y1 - axisY.projectValue(areaBase).pos;
+
+                      // Clone original path and splice our new area path to add the missing path elements to close the area shape
+                      var areaPath = path.clone();
+                      // Modify line path and add missing elements for area
+                      areaPath.position(0)
+                          .remove(1)
+                          .move(chartRect.x1, areaBaseProjected)
+                          .line(pathCoordinates[0], pathCoordinates[1])
+                          .position(areaPath.pathElements.length)
+                          .line(pathCoordinates[pathCoordinates.length - 2], areaBaseProjected);
+
+                      // Create the new path for the area shape with the area class from the options
+                      var area = seriesGroups[seriesIndex].elem('path', {
+                          d: areaPath.stringify()
+                      }, options.classNames.area, true).attr({
+                          'values': seriesData[seriesIndex]
+                      }, Chartist.xmlNs.uri);
+
+                      this.eventEmitter.emit('draw', {
+                          type: 'area',
+                          values: seriesData[seriesIndex],
+                          path: areaPath.clone(),
+                          chartRect: chartRect,
+                          index: seriesIndex,
+                          group: seriesGroups[seriesIndex],
+                          element: area
+                      });
+                  }
+              }
+          }.bind(this));
+
+          this.emitCreatedEvent(drawContext, options);
       }
-    };
 
-    /**
-     * Creates a new chart
-     *
-     */
-    function createChart(options) {
-      var seriesGroups = [],
-        normalizedData = Chartist.normalizeDataArray(Chartist.getDataArray(this.data, options.reverseData), this.data.labels.length);
+      function getSeriesData(drawContext, options) {
+          return Chartist.normalizeDataArray(Chartist.getDataArray(this.data, options.reverseData), this.data.labels.length);
+      }
 
-      // Create new svg object
-      this.svg = Chartist.createSvg(this.container, options.width, options.height, options.classNames.chart);
+      function getAndDrawAxes(drawContext, options) {
+          var seriesData = drawContext.seriesData;
+          var chartRect = drawContext.chartRect;
 
-      var chartRect = Chartist.createChartRect(this.svg, options);
+          var highLow = Chartist.getHighLow(seriesData);
+          // Overrides of high / low from settings
+          highLow.high = +options.high || (options.high === 0 ? 0 : highLow.high);
+          highLow.low = +options.low || (options.low === 0 ? 0 : highLow.low);
 
-      var highLow = Chartist.getHighLow(normalizedData);
-      // Overrides of high / low from settings
-      highLow.high = +options.high || (options.high === 0 ? 0 : highLow.high);
-      highLow.low = +options.low || (options.low === 0 ? 0 : highLow.low);
+          var axisX = new Chartist.StepAxis(
+              Chartist.Axis.units.x,
+              chartRect,
+              function xAxisTransform(projectedValue) {
+                  projectedValue.pos = chartRect.x1 + projectedValue.pos;
+                  return projectedValue;
+              }, {
+                  x: options.axisX.labelOffset.x,
+                  y: chartRect.y1 + options.axisX.labelOffset.y + (this.supportsForeignObject ? 5 : 20)
+              }, {
+                  stepCount: this.data.labels.length,
+                  stretch: options.fullWidth
+              }
+          );
 
-      var axisX = new Chartist.StepAxis(
-        Chartist.Axis.units.x,
-        chartRect,
-        function xAxisTransform(projectedValue) {
-          projectedValue.pos = chartRect.x1 + projectedValue.pos;
-          return projectedValue;
-        },
-        {
-          x: options.axisX.labelOffset.x,
-          y: chartRect.y1 + options.axisX.labelOffset.y + (this.supportsForeignObject ? 5 : 20)
-        },
-        {
-          stepCount: this.data.labels.length,
-          stretch: options.fullWidth
-        }
-      );
+          var axisY = new Chartist.LinearScaleAxis(
+              Chartist.Axis.units.y,
+              chartRect,
+              function yAxisTransform(projectedValue) {
+                  projectedValue.pos = chartRect.y1 - projectedValue.pos;
+                  return projectedValue;
+              }, {
+                  x: options.chartPadding + options.axisY.labelOffset.x + (this.supportsForeignObject ? -10 : 0),
+                  y: options.axisY.labelOffset.y + (this.supportsForeignObject ? -15 : 0)
+              }, {
+                  highLow: highLow,
+                  scaleMinSpace: options.axisY.scaleMinSpace
+              }
+          );
 
-      var axisY = new Chartist.LinearScaleAxis(
-        Chartist.Axis.units.y,
-        chartRect,
-        function yAxisTransform(projectedValue) {
-          projectedValue.pos = chartRect.y1 - projectedValue.pos;
-          return projectedValue;
-        },
-        {
-          x: options.chartPadding + options.axisY.labelOffset.x + (this.supportsForeignObject ? -10 : 0),
-          y: options.axisY.labelOffset.y + (this.supportsForeignObject ? -15 : 0)
-        },
-        {
-          highLow: highLow,
-          scaleMinSpace: options.axisY.scaleMinSpace
-        }
-      );
+          Chartist.createAxis(
+              axisX,
+              this.data.labels,
+              chartRect,
+              drawContext.gridGroup,
+              drawContext.labelGroup,
+              this.supportsForeignObject,
+              options,
+              this.eventEmitter
+          );
 
-      // Start drawing
-      var labelGroup = this.svg.elem('g').addClass(options.classNames.labelGroup),
-        gridGroup = this.svg.elem('g').addClass(options.classNames.gridGroup);
+          Chartist.createAxis(
+              axisY,
+              axisY.bounds.values,
+              chartRect,
+              drawContext.gridGroup,
+              drawContext.labelGroup,
+              this.supportsForeignObject,
+              options,
+              this.eventEmitter
+          );
 
-      Chartist.createAxis(
-        axisX,
-        this.data.labels,
-        chartRect,
-        gridGroup,
-        labelGroup,
-        this.supportsForeignObject,
-        options,
-        this.eventEmitter
-      );
+          return {
+              axisX: axisX,
+              axisY: axisY
+          }
+      }
 
-      Chartist.createAxis(
-        axisY,
-        axisY.bounds.values,
-        chartRect,
-        gridGroup,
-        labelGroup,
-        this.supportsForeignObject,
-        options,
-        this.eventEmitter
-      );
+      function getPathCoordinatesAndDrawPoints(drawContext, seriesIndex, options) {
+          var pathCoordinates = [];
+          var seriesData = drawContext.seriesData[seriesIndex];
+          seriesData.forEach(function(value, valueIndex) {
+              var p = {
+                  x: drawContext.chartRect.x1 + drawContext.axisX.projectValue(value, valueIndex, seriesData).pos,
+                  y: drawContext.chartRect.y1 - drawContext.axisY.projectValue(value, valueIndex, seriesData).pos
+              };
+              pathCoordinates.push(p.x, p.y);
 
-      // Draw the series
-      this.data.series.forEach(function(series, seriesIndex) {
-        seriesGroups[seriesIndex] = this.svg.elem('g');
+              //If we should show points we need to create them now to avoid secondary loop
+              // Small offset for Firefox to render squares correctly
+              if (options.showPoint) {
+                  this.drawPoint(drawContext.seriesGroups[seriesIndex], p, {
+                      'value': value,
+                      'meta': Chartist.getMetaData(this.data.series[seriesIndex], valueIndex)
+                  }, {
+                      value: value,
+                      index: valueIndex,
+                  }, options);
+              }
+          }.bind(this));
 
-        // Write attributes to series group element. If series name or meta is undefined the attributes will not be written
-        seriesGroups[seriesIndex].attr({
-          'series-name': series.name,
-          'meta': Chartist.serialize(series.meta)
-        }, Chartist.xmlNs.uri);
+          return pathCoordinates;
+      }
 
-        // Use series class from series data or if not set generate one
-        seriesGroups[seriesIndex].addClass([
-          options.classNames.series,
-          (series.className || options.classNames.series + '-' + Chartist.alphaNumerate(seriesIndex))
-        ].join(' '));
-
-        var pathCoordinates = [];
-
-        normalizedData[seriesIndex].forEach(function(value, valueIndex) {
-          var p = {
-            x: chartRect.x1 + axisX.projectValue(value, valueIndex,  normalizedData[seriesIndex]).pos,
-            y: chartRect.y1 - axisY.projectValue(value, valueIndex,  normalizedData[seriesIndex]).pos
-          };
-          pathCoordinates.push(p.x, p.y);
-
-          //If we should show points we need to create them now to avoid secondary loop
-          // Small offset for Firefox to render squares correctly
-          if (options.showPoint) {
-            var point = seriesGroups[seriesIndex].elem('line', {
+      function drawPoint(group, p, pointAttr, eventData, options) {
+          var point = group.elem('line', {
               x1: p.x,
               y1: p.y,
               x2: p.x + 0.01,
               y2: p.y
-            }, options.classNames.point).attr({
-              'value': value,
-              'meta': Chartist.getMetaData(series, valueIndex)
-            }, Chartist.xmlNs.uri);
+          }, options.classNames.point).attr(pointAttr, Chartist.xmlNs.uri);
 
-            this.eventEmitter.emit('draw', {
-              type: 'point',
-              value: value,
-              index: valueIndex,
-              group: seriesGroups[seriesIndex],
-              element: point,
-              x: p.x,
-              y: p.y
-            });
-          }
-        }.bind(this));
+          eventData.type = 'point';
+          eventData.group = group;
+          eventData.element = point;
+          eventData.x = p.x;
+          eventData.y = p.y;
+          this.eventEmitter.emit('draw', eventData);
+      }
 
-        // TODO: Nicer handling of conditions, maybe composition?
-        if (options.showLine || options.showArea) {
-          var path = new Chartist.Svg.Path().move(pathCoordinates[0], pathCoordinates[1]);
+      function emitCreatedEvent(drawContext, options) {
+          this.eventEmitter.emit('created', {
+              bounds: drawContext.axisY.bounds,
+              chartRect: drawContext.chartRect,
+              svg: this.svg,
+              options: options
+          });
+      }
 
-          // If smoothed path and path has more than two points then use catmull rom to bezier algorithm
-          if (options.lineSmooth && pathCoordinates.length > 4) {
+      /**
+       * This method creates a new line chart.
+       *
+       * @memberof Chartist.Line
+       * @param {String|Node} query A selector query string or directly a DOM element
+       * @param {Object} data The data object that needs to consist of a labels and a series array
+       * @param {Object} [options] The options object with options that override the default options. Check the examples for a detailed list.
+       * @param {Array} [responsiveOptions] Specify an array of responsive option arrays which are a media query and options object pair => [[mediaQueryString, optionsObject],[more...]]
+       * @return {Object} An object which exposes the API for the created chart
+       *
+       * @example
+       * // Create a simple line chart
+       * var data = {
+       *   // A labels array that can contain any sort of values
+       *   labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+       *   // Our series array that contains series objects or in this case series data arrays
+       *   series: [
+       *     [5, 2, 4, 2, 0]
+       *   ]
+       * };
+       *
+       * // As options we currently only set a static size of 300x200 px
+       * var options = {
+       *   width: '300px',
+       *   height: '200px'
+       * };
+       *
+       * // In the global name space Chartist we call the Line function to initialize a line chart. As a first parameter we pass in a selector where we would like to get our chart created. Second parameter is the actual data object and as a third parameter we pass in our options
+       * new Chartist.Line('.ct-chart', data, options);
+       *
+       * @example
+       * // Create a line chart with responsive options
+       *
+       * var data = {
+       *   // A labels array that can contain any sort of values
+       *   labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+       *   // Our series array that contains series objects or in this case series data arrays
+       *   series: [
+       *     [5, 2, 4, 2, 0]
+       *   ]
+       * };
+       *
+       * // In adition to the regular options we specify responsive option overrides that will override the default configutation based on the matching media queries.
+       * var responsiveOptions = [
+       *   ['screen and (min-width: 641px) and (max-width: 1024px)', {
+       *     showPoint: false,
+       *     axisX: {
+       *       labelInterpolationFnc: function(value) {
+       *         // Will return Mon, Tue, Wed etc. on medium screens
+       *         return value.slice(0, 3);
+       *       }
+       *     }
+       *   }],
+       *   ['screen and (max-width: 640px)', {
+       *     showLine: false,
+       *     axisX: {
+       *       labelInterpolationFnc: function(value) {
+       *         // Will return M, T, W etc. on small screens
+       *         return value[0];
+       *       }
+       *     }
+       *   }]
+       * ];
+       *
+       * new Chartist.Line('.ct-chart', data, null, responsiveOptions);
+       *
+       */
+      function Line(query, data, options, responsiveOptions) {
+          Chartist.Line.super.constructor.call(this,
+              query,
+              data,
+              Chartist.extend({}, defaultOptions, options),
+              responsiveOptions);
+      }
 
-            var cr = Chartist.catmullRom2bezier(pathCoordinates);
-            for(var k = 0; k < cr.length; k++) {
-              Chartist.Svg.Path.prototype.curve.apply(path, cr[k]);
-            }
-          } else {
-            for(var l = 3; l < pathCoordinates.length; l += 2) {
-              path.line(pathCoordinates[l - 1], pathCoordinates[l]);
-            }
-          }
-
-          if(options.showLine) {
-            var line = seriesGroups[seriesIndex].elem('path', {
-              d: path.stringify()
-            }, options.classNames.line, true).attr({
-              'values': normalizedData[seriesIndex]
-            }, Chartist.xmlNs.uri);
-
-            this.eventEmitter.emit('draw', {
-              type: 'line',
-              values: normalizedData[seriesIndex],
-              path: path.clone(),
-              chartRect: chartRect,
-              index: seriesIndex,
-              group: seriesGroups[seriesIndex],
-              element: line
-            });
-          }
-
-          if(options.showArea) {
-            // If areaBase is outside the chart area (< low or > high) we need to set it respectively so that
-            // the area is not drawn outside the chart area.
-            var areaBase = Math.max(Math.min(options.areaBase, axisY.bounds.max), axisY.bounds.min);
-
-            // We project the areaBase value into screen coordinates
-            var areaBaseProjected = chartRect.y1 - axisY.projectValue(areaBase).pos;
-
-            // Clone original path and splice our new area path to add the missing path elements to close the area shape
-            var areaPath = path.clone();
-            // Modify line path and add missing elements for area
-            areaPath.position(0)
-              .remove(1)
-              .move(chartRect.x1, areaBaseProjected)
-              .line(pathCoordinates[0], pathCoordinates[1])
-              .position(areaPath.pathElements.length)
-              .line(pathCoordinates[pathCoordinates.length - 2], areaBaseProjected);
-
-            // Create the new path for the area shape with the area class from the options
-            var area = seriesGroups[seriesIndex].elem('path', {
-              d: areaPath.stringify()
-            }, options.classNames.area, true).attr({
-              'values': normalizedData[seriesIndex]
-            }, Chartist.xmlNs.uri);
-
-            this.eventEmitter.emit('draw', {
-              type: 'area',
-              values: normalizedData[seriesIndex],
-              path: areaPath.clone(),
-              chartRect: chartRect,
-              index: seriesIndex,
-              group: seriesGroups[seriesIndex],
-              element: area
-            });
-          }
-        }
-      }.bind(this));
-
-      this.eventEmitter.emit('created', {
-        bounds: axisY.bounds,
-        chartRect: chartRect,
-        svg: this.svg,
-        options: options
+      // Creating line chart type in Chartist namespace
+      Chartist.Line = Chartist.Base.extend({
+          constructor: Line,
+          createChart: createChart,
+          getSeriesData: getSeriesData,
+          getAndDrawAxes: getAndDrawAxes,
+          getPathCoordinatesAndDrawPoints: getPathCoordinatesAndDrawPoints,
+          drawPoint: drawPoint,
+          emitCreatedEvent: emitCreatedEvent
       });
-    }
 
-    /**
-     * This method creates a new line chart.
-     *
-     * @memberof Chartist.Line
-     * @param {String|Node} query A selector query string or directly a DOM element
-     * @param {Object} data The data object that needs to consist of a labels and a series array
-     * @param {Object} [options] The options object with options that override the default options. Check the examples for a detailed list.
-     * @param {Array} [responsiveOptions] Specify an array of responsive option arrays which are a media query and options object pair => [[mediaQueryString, optionsObject],[more...]]
-     * @return {Object} An object which exposes the API for the created chart
-     *
-     * @example
-     * // Create a simple line chart
-     * var data = {
-     *   // A labels array that can contain any sort of values
-     *   labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-     *   // Our series array that contains series objects or in this case series data arrays
-     *   series: [
-     *     [5, 2, 4, 2, 0]
-     *   ]
-     * };
-     *
-     * // As options we currently only set a static size of 300x200 px
-     * var options = {
-     *   width: '300px',
-     *   height: '200px'
-     * };
-     *
-     * // In the global name space Chartist we call the Line function to initialize a line chart. As a first parameter we pass in a selector where we would like to get our chart created. Second parameter is the actual data object and as a third parameter we pass in our options
-     * new Chartist.Line('.ct-chart', data, options);
-     *
-     * @example
-     * // Create a line chart with responsive options
-     *
-     * var data = {
-     *   // A labels array that can contain any sort of values
-     *   labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-     *   // Our series array that contains series objects or in this case series data arrays
-     *   series: [
-     *     [5, 2, 4, 2, 0]
-     *   ]
-     * };
-     *
-     * // In adition to the regular options we specify responsive option overrides that will override the default configutation based on the matching media queries.
-     * var responsiveOptions = [
-     *   ['screen and (min-width: 641px) and (max-width: 1024px)', {
-     *     showPoint: false,
-     *     axisX: {
-     *       labelInterpolationFnc: function(value) {
-     *         // Will return Mon, Tue, Wed etc. on medium screens
-     *         return value.slice(0, 3);
-     *       }
-     *     }
-     *   }],
-     *   ['screen and (max-width: 640px)', {
-     *     showLine: false,
-     *     axisX: {
-     *       labelInterpolationFnc: function(value) {
-     *         // Will return M, T, W etc. on small screens
-     *         return value[0];
-     *       }
-     *     }
-     *   }]
-     * ];
-     *
-     * new Chartist.Line('.ct-chart', data, null, responsiveOptions);
-     *
-     */
-    function Line(query, data, options, responsiveOptions) {
-      Chartist.Line.super.constructor.call(this,
-        query,
-        data,
-        Chartist.extend({}, defaultOptions, options),
-        responsiveOptions);
-    }
-
-    // Creating line chart type in Chartist namespace
-    Chartist.Line = Chartist.Base.extend({
-      constructor: Line,
-      createChart: createChart
-    });
-
-  }(window, document, Chartist));
-  ;/**
+  }(window, document, Chartist));;/**
    * Line XY Chart.
    *
-   * 
+   *
    *
    * @module Chartist.LineXY
    */
   /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
+  (function(window, document, Chartist) {
+      'use strict';
 
-    /**
-     * Default options in line charts. Expand the code view to see a detailed list of options with comments.
-     *
-     * @memberof Chartist.LineXY
-     */
-    var defaultOptions = {
-      // Options for X-Axis
-      axisX: {
-        // The offset of the labels to the chart area
-        offset: 30,
-        // Allows you to correct label positioning on this axis by positive or negative x and y offset.
-        labelOffset: {
-          x: 0,
-          y: 0
-        },
-        // If labels should be shown or not
-        showLabel: true,
-        // If the axis grid should be drawn or not
-        showGrid: true,
-        // Interpolation function that allows you to intercept the value from the axis label
-        labelInterpolationFnc: Chartist.noop
-      },
-      // Options for Y-Axis
-      axisY: {
-        // The offset of the labels to the chart area
-        offset: 40,
-        // Allows you to correct label positioning on this axis by positive or negative x and y offset.
-        labelOffset: {
-          x: 0,
-          y: 0
-        },
-        // If labels should be shown or not
-        showLabel: true,
-        // If the axis grid should be drawn or not
-        showGrid: true,
-        // Interpolation function that allows you to intercept the value from the axis label
-        labelInterpolationFnc: Chartist.noop,
-        // This value specifies the minimum height in pixel of the scale steps
-        scaleMinSpace: 20
-      },
-      // Specify a fixed width for the chart as a string (i.e. '100px' or '50%')
-      width: undefined,
-      // Specify a fixed height for the chart as a string (i.e. '100px' or '50%')
-      height: undefined,
-      // If the line should be drawn or not
-      showLine: true,
-      // If dots should be drawn or not
-      showPoint: true,
-      // If the line chart should draw an area
-      showArea: false,
-      // The base for the area chart that will be used to close the area shape (is normally 0)
-      areaBase: 0,
-      // Specify if the lines should be smoothed (Catmull-Rom-Splines will be used)
-      lineSmooth: true,
-      // Overriding the natural low of the chart allows you to zoom in or limit the charts lowest displayed value
-      low: undefined,
-      // Overriding the natural high of the chart allows you to zoom in or limit the charts highest displayed value
-      high: undefined,
-      // Padding of the chart drawing area to the container element and labels
-      chartPadding: 5,
-      // When set to true, the last grid line on the x-axis is not drawn and the chart elements will expand to the full available width of the chart. For the last label to be drawn correctly you might need to add chart padding or offset the last label with a draw event handler.
-      fullWidth: false,
-      // If true the whole data is reversed including labels, the series order as well as the whole series data arrays.
-      reverseData: false,
-      // Override the class names that get used to generate the SVG structure of the chart
-      classNames: {
-        chart: 'ct-chart-line',
-        label: 'ct-label',
-        labelGroup: 'ct-labels',
-        series: 'ct-series',
-        line: 'ct-line',
-        point: 'ct-point',
-        area: 'ct-area',
-        grid: 'ct-grid',
-        gridGroup: 'ct-grids',
-        vertical: 'ct-vertical',
-        horizontal: 'ct-horizontal'
+      function getSeriesData(drawContext, options) {
+          var yValues = [];
+          var xValues = [];
+
+          var seriesData = [];
+          this.data.series.forEach(function(series, seriesIndex) {
+              xValues[seriesIndex] = [];
+              yValues[seriesIndex] = [];
+              seriesData[seriesIndex] = [];
+              series.data.forEach(function(value, valueIndex) {
+                  value = this.dataTransform(value);
+                  seriesData[seriesIndex].push(value);
+                  xValues[seriesIndex][valueIndex] = value.x;
+                  yValues[seriesIndex][valueIndex] = value.y;
+              }.bind(this));
+          }.bind(this));
+
+          drawContext.xValues = xValues;
+          drawContext.yValues = yValues;
+
+          return seriesData;
       }
-    };
 
-    /**
-     * Creates a new chart
-     *
-     */
-    function createChart(options) {
-      var seriesGroups = [];
+      function getAndDrawAxes(drawContext, options) {
+          var highLowForY = Chartist.getHighLow(drawContext.yValues);
+          var highLowForX = Chartist.getHighLow(drawContext.xValues);
+          // Overrides of high / low from settings
+          highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
+          highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
 
-      // Create new svg object
-      this.svg = Chartist.createSvg(this.container, options.width, options.height, options.classNames.chart);
+          var xAxisTransform = function xAxisTransform(projectedValue) {
+              projectedValue.pos = drawContext.chartRect.x1 + projectedValue.pos;
+              return projectedValue;
+          };
 
-      var chartRect = Chartist.createChartRect(this.svg, options);
+          var yAxisTransform = function yAxisTransform(projectedValue) {
+              projectedValue.pos = drawContext.chartRect.y1 - projectedValue.pos;
+              return projectedValue;
+          };
 
-  	var yValues = [];
-  	var xValues = [];
-  	var seriesTmp = [];
+          var xLabelOffset = {
+              x: options.axisX.labelOffset.x,
+              y: drawContext.chartRect.y1 + options.axisX.labelOffset.y + (this.supportsForeignObject ? 5 : 20)
+          };
 
-  	this.data.series.forEach(function(series, seriesIndex) {
-  		xValues[seriesIndex] = [];
-  		yValues[seriesIndex] = [];
-  		series[seriesIndex] = [];
-  		series[seriesIndex].data = [];
-  		series.data.forEach(function(value, valueIndex) {
-  			value = this.dataTransform(value);
-  			series[seriesIndex].data.push(value);
-  			xValues[seriesIndex][valueIndex] = value.x;
-  			yValues[seriesIndex][valueIndex] = value.y;
-  		}.bind(this));
-  	}.bind(this));
+          var yLabelOffset = {
+              x: options.chartPadding + options.axisY.labelOffset.x + (this.supportsForeignObject ? -10 : 0),
+              y: options.axisY.labelOffset.y + (this.supportsForeignObject ? -15 : 0)
+          };
 
-      var highLowForY = Chartist.getHighLow(yValues);
-  	var highLowForX = Chartist.getHighLow(xValues);
-      // Overrides of high / low from settings
-      highLowForY.high = +options.high || (options.high === 0 ? 0 : highLowForY.high);
-      highLowForY.low = +options.low || (options.low === 0 ? 0 : highLowForY.low);
-
-  	if (this.axisX) {
-            this.axisX.initialize(
-  			chartRect, 
-  			function xAxisTransform(projectedValue) {
-  				projectedValue.pos = chartRect.x1 + projectedValue.pos;
-  				return projectedValue;
-  			},
-  			{
-  				x: options.axisX.labelOffset.x,
-  				y: chartRect.y1 + options.axisX.labelOffset.y + (this.supportsForeignObject ? 5 : 20)
-  		    },
-  			highLowForX);
-        }
-
-        if (this.axisY) {
-            this.axisY.initialize(
-  		  chartRect,
-  		  function yAxisTransform(projectedValue) {
-  			projectedValue.pos = chartRect.y1 - projectedValue.pos;
-  			return projectedValue;
-  		  },
-  		  {
-  			x: options.chartPadding + options.axisY.labelOffset.x + (this.supportsForeignObject ? -10 : 0),
-  			y: options.axisY.labelOffset.y + (this.supportsForeignObject ? -15 : 0)
-  		  },
-  		  highLowForY);
-        }
-
-      var axisX = this.axisX || new Chartist.LinearScaleAxis(
-        Chartist.Axis.units.x,
-        chartRect,
-  	  function xAxisTransform(projectedValue) {
-          projectedValue.pos = chartRect.x1 + projectedValue.pos;
-          return projectedValue;
-        },
-  	  {
-          x: options.axisX.labelOffset.x,
-          y: chartRect.y1 + options.axisX.labelOffset.y + (this.supportsForeignObject ? 5 : 20)
-        },
-  	  {
-          highLow: highLowForX,
-          scaleMinSpace: options.axisX.scaleMinSpace
-        }
-      );
-
-      var axisY = this.axisY || new Chartist.LinearScaleAxis(
-        Chartist.Axis.units.y,
-        chartRect, 
-  	  function yAxisTransform(projectedValue) {
-          projectedValue.pos = chartRect.y1 - projectedValue.pos;
-          return projectedValue;
-        },
-        {
-          x: options.chartPadding + options.axisY.labelOffset.x + (this.supportsForeignObject ? -10 : 0),
-          y: options.axisY.labelOffset.y + (this.supportsForeignObject ? -15 : 0)
-        },
-        {
-          highLow: highLowForY,
-          scaleMinSpace: options.axisY.scaleMinSpace
-        }
-      );
-
-      // Start drawing
-      var labelGroup = this.svg.elem('g').addClass(options.classNames.labelGroup),
-        gridGroup = this.svg.elem('g').addClass(options.classNames.gridGroup);
-
-  	var ticksX = axisX.ticks || axisX.bounds.values;
-  	var ticksY = axisY.ticks || axisY.bounds.values;
-
-      Chartist.createAxis(
-        axisX,
-        ticksX,
-        chartRect,
-        gridGroup,
-  	  labelGroup,
-        this.supportsForeignObject,
-        options,
-        this.eventEmitter
-      );
-
-      Chartist.createAxis(
-        axisY,
-        ticksY,
-        chartRect,
-        gridGroup,
-        labelGroup,
-        this.supportsForeignObject,
-        options,
-        this.eventEmitter
-      );
-
-      // Draw the series
-      this.data.series.forEach(function(series, seriesIndex) {
-        seriesGroups[seriesIndex] = this.svg.elem('g');
-
-        // Write attributes to series group element. If series name or meta is undefined the attributes will not be written
-        seriesGroups[seriesIndex].attr({
-          'series-name': series.name,
-          'meta': Chartist.serialize(series.meta)
-        }, Chartist.xmlNs.uri);
-
-        // Use series class from series data or if not set generate one
-        seriesGroups[seriesIndex].addClass([
-          options.classNames.series,
-          (series.className || options.classNames.series + '-' + Chartist.alphaNumerate(seriesIndex))
-        ].join(' '));
-
-        var pathCoordinates = [];
-  	  series.data.forEach(function(value, valueIndex) {
-  		value = this.dataTransform(value);
-  		var p = {
-  		  x: chartRect.x1 + axisX.projectValue(value.x, valueIndex,  series).pos,
-  		  y: chartRect.y1 - axisY.projectValue(value.y, valueIndex,  series).pos
-  		};
-  		pathCoordinates.push(p.x, p.y);
-
-  		//If we should show points we need to create them now to avoid secondary loop
-  		// Small offset for Firefox to render squares correctly
-  		if (options.showPoint) {
-  		  var point = seriesGroups[seriesIndex].elem('line', {
-  			x1: p.x,
-  			y1: p.y,
-  			x2: p.x + 0.01,
-  			y2: p.y
-  		  }, options.classNames.point).attr({
-  			'value.x': value.x,
-  			'value.y': value.y,
-  			'meta': Chartist.getMetaData(series, valueIndex)
-  		  }, Chartist.xmlNs.uri);
-
-  		  this.eventEmitter.emit('draw', {
-  			type: 'point',
-  			value: value,
-  			index: valueIndex,
-  			group: seriesGroups[seriesIndex],
-  			element: point,
-  			x: p.x,
-  			y: p.y
-  		  });
-  		}
-  	  }.bind(this));
-
-        // TODO: Nicer handling of conditions, maybe composition?
-        if (options.showLine || options.showArea) {
-          var path = new Chartist.Svg.Path().move(pathCoordinates[0], pathCoordinates[1]);
-
-          // If smoothed path and path has more than two points then use catmull rom to bezier algorithm
-          if (options.lineSmooth && pathCoordinates.length > 4) {
-
-            var cr = Chartist.catmullRom2bezier(pathCoordinates);
-            for(var k = 0; k < cr.length; k++) {
-              Chartist.Svg.Path.prototype.curve.apply(path, cr[k]);
-            }
-          } else {
-            for(var l = 3; l < pathCoordinates.length; l += 2) {
-              path.line(pathCoordinates[l - 1], pathCoordinates[l]);
-            }
+          if (this.axisX) {
+              this.axisX.initialize(
+                  drawContext.chartRect,
+                  xAxisTransform,
+                  xLabelOffset,
+                  highLowForX);
           }
 
-          if(options.showLine) {
-            var line = seriesGroups[seriesIndex].elem('path', {
-              d: path.stringify()
-            }, options.classNames.line, true).attr({
-              'values': series.data
-            }, Chartist.xmlNs.uri);
-
-            this.eventEmitter.emit('draw', {
-              type: 'line',
-              values: series.data,
-              path: path.clone(),
-              chartRect: chartRect,
-              index: seriesIndex,
-              group: seriesGroups[seriesIndex],
-              element: line
-            });
+          if (this.axisY) {
+              this.axisY.initialize(
+                  drawContext.chartRect,
+                  yAxisTransform,
+                  yLabelOffset,
+                  highLowForY);
           }
 
-          if(options.showArea) {
-            // If areaBase is outside the chart area (< low or > high) we need to set it respectively so that
-            // the area is not drawn outside the chart area.
-            var areaBase = Math.max(Math.min(options.areaBase, axisY.bounds.max), axisY.bounds.min);
+          var axisX = this.axisX || new Chartist.LinearScaleAxis(
+              Chartist.Axis.units.x,
+              drawContext.chartRect,
+              xAxisTransform,
+              xLabelOffset, {
+                  highLow: highLowForX,
+                  scaleMinSpace: options.axisX.scaleMinSpace
+              }
+          );
 
-            // We project the areaBase value into screen coordinates
-            var areaBaseProjected = chartRect.y1 - axisY.projectValue(areaBase).pos;
+          var axisY = this.axisY || new Chartist.LinearScaleAxis(
+              Chartist.Axis.units.y,
+              drawContext.chartRect,
+              yAxisTransform,
+              yLabelOffset, {
+                  highLow: highLowForY,
+                  scaleMinSpace: options.axisY.scaleMinSpace
+              }
+          );
 
-            // Clone original path and splice our new area path to add the missing path elements to close the area shape
-            var areaPath = path.clone();
-            // Modify line path and add missing elements for area
-            areaPath.position(0)
-              .remove(1)
-              .move(chartRect.x1, areaBaseProjected)
-              .line(pathCoordinates[0], pathCoordinates[1])
-              .position(areaPath.pathElements.length)
-              .line(pathCoordinates[pathCoordinates.length - 2], areaBaseProjected);
+          var ticksX = axisX.ticks || axisX.bounds.values;
+          var ticksY = axisY.ticks || axisY.bounds.values;
 
-            // Create the new path for the area shape with the area class from the options
-            var area = seriesGroups[seriesIndex].elem('path', {
-              d: areaPath.stringify()
-            }, options.classNames.area, true).attr({
-              'values': series.data
-            }, Chartist.xmlNs.uri);
+          Chartist.createAxis(
+              axisX,
+              ticksX,
+              drawContext.chartRect,
+              drawContext.gridGroup,
+              drawContext.labelGroup,
+              this.supportsForeignObject,
+              options,
+              this.eventEmitter
+          );
 
-            this.eventEmitter.emit('draw', {
-              type: 'area',
-              values: series.data,
-              path: areaPath.clone(),
-              chartRect: chartRect,
-              index: seriesIndex,
-              group: seriesGroups[seriesIndex],
-              element: area
-            });
+          Chartist.createAxis(
+              axisY,
+              ticksY,
+              drawContext.chartRect,
+              drawContext.gridGroup,
+              drawContext.labelGroup,
+              this.supportsForeignObject,
+              options,
+              this.eventEmitter
+          );
+
+          return {
+              axisX: axisX,
+              axisY: axisY
           }
-        }
-      }.bind(this));
+      }
 
-      this.eventEmitter.emit('created', {
-        axisX: axisX,
-  	  axisY: axisY,
-        chartRect: chartRect,
-        svg: this.svg,
-        options: options
+      function getPathCoordinatesAndDrawPoints(drawContext, seriesIndex, options) {
+          var pathCoordinates = [];
+          var seriesData = drawContext.seriesData[seriesIndex];
+          seriesData.forEach(function(value, valueIndex) {
+              var p = {
+                  x: drawContext.chartRect.x1 + drawContext.axisX.projectValue(value.x, valueIndex, seriesData).pos,
+                  y: drawContext.chartRect.y1 - drawContext.axisY.projectValue(value.y, valueIndex, seriesData).pos
+              };
+              pathCoordinates.push(p.x, p.y);
+
+              //If we should show points we need to create them now to avoid secondary loop
+              // Small offset for Firefox to render squares correctly
+              if (options.showPoint) {
+                  this.drawPoint(drawContext.seriesGroups[seriesIndex], p, {
+                      'value.x': value.x,
+                      'value.y': value.y,
+                      'meta': Chartist.getMetaData(this.data.series[seriesIndex], valueIndex)
+                  }, {
+                      value: value,
+                      index: valueIndex,
+                  }, options);
+              }
+          }.bind(this));
+
+          return pathCoordinates;
+      }
+
+      function emitCreatedEvent(drawContext, options) {
+          this.eventEmitter.emit('created', {
+              axisX: drawContext.axisX,
+              axisY: drawContext.axisY,
+              chartRect: drawContext.chartRect,
+              svg: this.svg,
+              options: options
+          });
+      }
+
+      function LineXY(query, data, options, responsiveOptions, axisX, axisY, dataTransform) {
+          Chartist.LineXY.super.constructor.call(this,
+              query,
+              data,
+              options,
+              responsiveOptions);
+          this.axisX = axisX;
+          this.axisY = axisY;
+          this.dataTransform = dataTransform || Chartist.noop;
+      }
+
+      // Creating line chart type in Chartist namespace
+      Chartist.LineXY = Chartist.Line.extend({
+          constructor: LineXY,
+          getSeriesData: getSeriesData,
+          getAndDrawAxes: getAndDrawAxes,
+          getPathCoordinatesAndDrawPoints: getPathCoordinatesAndDrawPoints,
+          emitCreatedEvent: emitCreatedEvent
       });
-    }
-
-    function LineXY(query, data, options, responsiveOptions, axisX, axisY, dataTransform) {
-      Chartist.LineXY.super.constructor.call(this,
-        query,
-        data,
-        Chartist.extend({}, defaultOptions, options),
-        responsiveOptions);
-  	  this.axisX = axisX;
-  	  this.axisY = axisY;
-  	  this.dataTransform = dataTransform || Chartist.noop;
-    }
-
-    // Creating line chart type in Chartist namespace
-    Chartist.LineXY = Chartist.Base.extend({
-      constructor: LineXY,
-      createChart: createChart
-    });
 
   }(window, document, Chartist));
   ;/**
@@ -3674,469 +3578,204 @@
 
   }(window, document, Chartist));
   ;/**
-   * Step axis for step based charts like bar chart or step based line chart
-   *
-   * @module Chartist.DateAxis
-   */
-  /* global Chartist */
-  (function (window, document, Chartist) {
-    'use strict';
-
-    function DateAxis(units, options) {
-      this.units = units;
-      this.counterUnits = units === Chartist.Axis.units.x ? Chartist.Axis.units.y : Chartist.Axis.units.x;
-      this.options = options;
-
-  	this.ticksProvider = options.ticksProvider || new ResolutionBasedDateTicksProvider();
-  	this.ticks = [];
-    }
-
-    function initialize(chartRect, transform, labelOffset, highLow) {
-  	this.chartRect = chartRect;
-      this.axisLength = chartRect[this.units.rectEnd] - chartRect[this.units.rectStart];
-      this.gridOffset = chartRect[this.units.rectOffset];
-  	this.transform = transform;
-  	this.labelOffset = labelOffset;
-
-
-  	this.ticks = this.ticksProvider.getTicks(highLow);
-  	this.min = this.ticks[0].valueOf();
-  	this.range = this.ticks[this.ticks.length-1].valueOf() - this.min;
-    }
-
-    function projectValue(value) {
-      return {
-        pos: value * (this.axisLength / this.range) - this.min * (this.axisLength / this.range),
-        len: Chartist.projectLength(this.axisLength, 1, this)
-      };
-    }
-
-    Chartist.DateAxis = Chartist.Axis.extend({
-      constructor: DateAxis,
-      projectValue: projectValue,
-  	initialize: initialize
-    });
-
-  }(window, document, Chartist));;/**
    * Date Ticks Provider
    *
-   * 
+   *
    *
    * @module Chartist.DateTicksProvider
    */
   /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-  	function getTicks(highLow) {
-      		var startDate = highLow.low;
-      		var endDate = highLow.high;
-
-      		var duration = endDate - startDate;
-
-      		var newStart = this.roundDown(new Date(startDate.getTime()));
-      		var newEnd = this.roundUp(new Date(endDate.getTime()));
-
-      		var step = 1;
-      		var startTick = this.getStart(newStart);
-      		var endTick = this.addStep(newEnd, step);
-
-      		var ticks = [];
-      		while(startTick.valueOf() < endTick.valueOf())
-      		{
-      			ticks.push(startTick);
-      			startTick = this.addStep(new Date(startTick.getTime()), step);
-      		}
-      		return ticks;
-      	}
-
-  	function addStep(date, step) {
-  	}
-
-  	function getStart(date) {
-  	}
-
-  	function roundDown(date) {
-  	}
-
-  	function roundUp(date) {
-  	}
-
-  	function DateTicksProvider() {
-  	}
-
-    // Creating date tick provider type in Chartist namespace
-    Chartist.DateTicksProvider = Chartist.Base.extend({
-      constructor: DateTicksProvider,
-      getTicks: getTicks,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Resolution Based Date Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.ResolutionBasedDateTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-  	function getTicks(highLow) {
-      		var startDate = highLow.low;
-      		var endDate = highLow.high;
-
-      		var duration = endDate - startDate;
-      		var bestProvider = getProviderBasedOnDuration(duration);
-
-      		var newStart = bestProvider.roundDown(new Date(startDate.getTime()));
-      		var newEnd = bestProvider.roundUp(new Date(endDate.getTime()));
-
-      		var step = 1;
-      		var startTick = bestProvider.getStart(newStart);
-      		var endTick = bestProvider.addStep(newEnd, step);
-
-      		var ticks = [];
-      		while(startTick.valueOf() < endTick.valueOf())
-      		{
-      			ticks.push(startTick);
-      			startTick = bestProvider.addStep(new Date(startTick.getTime()), step);
-      		}
-      		return ticks;
-      	}
-
-    	function getProviderBasedOnDuration(duration) {
-    		if(duration > 31556952000)
-    		{
-    			return new Chartist.YearTicksProvider();
-    		}
-    		if(duration > 2592000000)
-    		{
-    			return new Chartist.MonthTicksProvider();
-    		}
-    		if(duration > 86400000)
-    		{
-    			return new Chartist.DayTicksProvider();
-    		}
-    		if(duration > 3600000)
-    		{
-    			return new Chartist.HourTicksProvider();
-    		}
-    		if(duration > 60000)
-    		{
-    			return new Chartist.MinuteTicksProvider();
-    		}
-    		if(duration > 1000)
-    		{
-    			return new Chartist.MillisecondsTicksProvider();
-    		}
-
-    		return new Chartist.MillisecondsTicksProvider();
-    	}
-
-  	function ResolutionBasedTicksProvider() {
-  	}
-
-    // Creating date tick provider type in Chartist namespace
-    Chartist.ResolutionBasedTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: ResolutionBasedTicksProvider,
-      getTicks: getTicks
-    });
-
-  }(window, document, Chartist));;/**
-   * Year Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.YearTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-  		function addStep(date, step) {
-  			date.setFullYear(date.getFullYear() + step);
-  			return date;
-      	}
-
-      	function getStart(date) {
-      		return new Date(date.getFullYear(),1, 0,0,0,0,0);
-      	}
-
-      	function roundDown(date) {
-      		 return new Date(date.getFullYear(),1, 0,0,0,0,0);
-      	}
-
-      	function roundUp(date) {
-      	    var res = roundDown(date);
-  			res.setFullYear(date.getFullYear() + 1);
-  			return res;
-      	}
-
-  	function YearTicksProvider() {
-  	}
-
-    // Creating year tick provider type in Chartist namespace
-    Chartist.YearTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: YearTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Month Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.MonthTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-
-    	function addStep(date, step) {
-      	date.setMonth(date.getMonth() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(),  1, 0,0,0,0);
-  	}
-
-  	function roundUp(date) {
-  		var res = roundDown(date);
-  		res.setMonth(date.getMonth() + 1);
-  		return res;
-  	}
-
-  	function MonthTicksProvider() {
-  	}
-
-    // Creating month tick provider type in Chartist namespace
-    Chartist.MonthTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: MonthTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Day Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.DayTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-
-    	function addStep(date, step) {
-      	date.setDate(date.getDate() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0,0);
-  	}
-
-  	function roundUp(date) {
-  		var res = roundDown(date);
-  		res.setDate(date.getDate() + 1);
-  		return res;
-  	}
-
-  	function DayTicksProvider() {
-  	}
-
-    // Creating day tick provider type in Chartist namespace
-    Chartist.DayTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: DayTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Hour Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.HourTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-
-    	function addStep(date, step) {
-      	date.setHours(date.getHours() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),0,0,0);
-  	}
-
-  	function roundUp(date) {
-  		var res = roundDown(date);
-  		res.setHours(date.getHours() + 1);
-  		return res;
-  	}
-
-  	function HourTicksProvider() {
-  	}
-
-    // Creating hour tick provider type in Chartist namespace
-    Chartist.HourTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: HourTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Minute Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.MinuteTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-
-    	function addStep(date, step) {
-      	date.setMinutes(date.getMinutes() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),0,0);
-  	}
-
-  	function roundUp(date) {
-  		var res = roundDown(date);
-  		res.setMinutes(date.getMinutes() + 1);
-  		return res;
-  	}
-
-  	function MinuteTicksProvider() {
-  	}
-
-    // Creating minute tick provider type in Chartist namespace
-    Chartist.MinuteTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: MinuteTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Seconds Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.SecondsTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-    	function addStep(date, step) {
-      	date.setSeconds(date.getSeconds() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),0);
-  	}
-
-  	function roundUp(date) {
-  		var res = roundDown(date);
-  		res.setSeconds(date.getSeconds() + 1);
-  		return res;
-  	}
-
-  	function SecondsTicksProvider() {
-  	}
-
-    // Creating seconds tick provider type in Chartist namespace
-    Chartist.SecondsTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: SecondsTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-    });
-
-  }(window, document, Chartist));;/**
-   * Milliseconds Ticks Provider
-   *
-   * 
-   *
-   * @module Chartist.MillisecondsTicksProvider
-   */
-  /* global Chartist */
-  (function(window, document, Chartist){
-    'use strict';
-
-    	function addStep(date, step) {
-      	date.setMilliseconds(date.getMilliseconds() + step);
-  		return date;
-  	}
-
-  	function getStart(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
-  	}
-
-  	function roundDown(date) {
-  		return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(),date.getMinutes(),date.getSeconds(),date.getMilliseconds());
-  	}
-
-  	function roundUp(date) {
-      	    var res = roundDown(date);
-  			res.setMilliseconds(date.getMilliseconds() + 1);
-      		return res;
-      	}
-
-  	function MillisecondsTicksProvider() {
-  	}
-
-    // Creating ms tick provider type in Chartist namespace
-    Chartist.MillisecondsTicksProvider = Chartist.DateTicksProvider.extend({
-      constructor: MillisecondsTicksProvider,
-  	addStep: addStep,
-  	roundDown: roundDown,
-  	roundUp: roundUp,
-  	getStart: getStart
-
-    });
+  (function(window, document, Chartist) {
+      'use strict';
+
+      function getTicks(highLow) {
+          var startDate = highLow.low;
+          var endDate = highLow.high;
+
+          var duration = endDate - startDate;
+
+          var bestResolution = this.resolution || this.getResolutionBasedOnDuration(duration);
+          var newStart = this.roundDown(new Date(startDate.getTime()), bestResolution);
+          var newEnd = this.roundUp(new Date(endDate.getTime()), bestResolution);
+
+          var step = 1;
+          var startTick = this.getStart(newStart, bestResolution);
+          var endTick = this.addStep(newEnd, step, bestResolution);
+
+          var ticks = [];
+          while (startTick.valueOf() < endTick.valueOf()) {
+              ticks.push(startTick);
+              startTick = this.addStep(new Date(startTick.getTime()), step, bestResolution);
+          }
+          return ticks;
+      }
+
+      function getResolutionBasedOnDuration(duration) {
+          if (duration > 31556952000) {
+              return 0;
+          }
+          if (duration > 2592000000) {
+              return 1;
+          }
+          if (duration > 86400000) {
+              return 2;
+          }
+          if (duration > 3600000) {
+              return 3;
+          }
+          if (duration > 60000) {
+              return 4;
+          }
+          if (duration > 1000) {
+              return 5;
+          }
+
+          return 6;
+      }
+
+      function addStep(date, step, resolution) {
+          switch (resolution) {
+              case 0:
+                  date.setFullYear(date.getFullYear() + step);
+                  break;
+              case 1:
+                  date.setMonth(date.getMonth() + step);
+                  break;
+              case 2:
+                  date.setDate(date.getDate() + step);
+                  break;
+              case 3:
+                  date.setHours(date.getHours() + step);
+                  break;
+              case 4:
+                  date.setMinutes(date.getMinutes() + step);
+                  break;
+              case 5:
+                  date.setSeconds(date.getSeconds() + step);
+                  break;
+              case 6:
+                  date.setMilliseconds(date.getMilliseconds() + step);
+                  break;
+              default:
+                  break;
+          }
+          return date;
+      }
+
+      function getStart(date, resolution) {
+          var res = date;
+          switch (resolution) {
+              case 0:
+                  res = new Date(date.getFullYear(), 1, 0, 0, 0, 0, 0);
+                  break;
+              case 1:
+                  res = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+                  break;
+              case 2:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+                  break;
+              case 3:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+                  break;
+              case 4:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), 0, 0);
+                  break;
+              case 5:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), 0);
+                  break;
+              case 6:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
+                  break;
+              default:
+                  break;
+          }
+          return res;
+      }
+
+      function roundDown(date, resolution) {
+          var res = date;
+          switch (resolution) {
+              case 0:
+                  res = new Date(date.getFullYear(), 1, 0, 0, 0, 0, 0);
+                  break;
+              case 1:
+                  res = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+                  break;
+              case 2:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+                  break;
+              case 3:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+                  break;
+              case 4:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), 0, 0);
+                  break;
+              case 5:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), 0);
+                  break;
+              case 6:
+                  res = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
+                  break;
+              default:
+                  break;
+          }
+
+          return res;
+      }
+
+      function roundUp(date, resolution) {
+          var res = roundDown(date, resolution);
+          switch (resolution) {
+              case 0:
+                  res.setFullYear(date.getFullYear() + 1);
+                  break;
+              case 1:
+                  res.setMonth(date.getMonth() + 1);
+                  break;
+              case 2:
+                  res.setDate(date.getDate() + 1);
+                  break;
+              case 3:
+                  res.setHours(date.getHours() + 1);
+                  break;
+              case 4:
+                  res.setMinutes(date.getMinutes() + 1);
+                  break;
+              case 5:
+                  res.setSeconds(date.getSeconds() + 1);
+                  break;
+              case 6:
+                  res.setMilliseconds(date.getMilliseconds() + 1);
+                  break;
+              default:
+                  break;
+          }
+
+          return res;
+      }
+
+      function DateTicksProvider(resolution) {
+          this.resolution = resolution;
+      }
+
+      // Creating date tick provider type in Chartist namespace
+      Chartist.DateTicksProvider = Chartist.Base.extend({
+          constructor: DateTicksProvider,
+          getTicks: getTicks,
+          getResolutionBasedOnDuration: getResolutionBasedOnDuration,
+          addStep: addStep,
+          roundDown: roundDown,
+          roundUp: roundUp,
+          getStart: getStart
+      });
+
+      Chartist.DateTicksProvider.Year = 0;
+      Chartist.DateTicksProvider.Month = 1;
+      Chartist.DateTicksProvider.Day = 2;
+      Chartist.DateTicksProvider.Hour = 3;
+      Chartist.DateTicksProvider.Minute = 4;
+      Chartist.DateTicksProvider.Second = 5;
+      Chartist.DateTicksProvider.Millisecond = 6;
 
   }(window, document, Chartist));
   return Chartist;
